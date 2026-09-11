@@ -6,17 +6,20 @@ import {
   ArrowRight,
   ClipboardList,
   Clock3,
+  Inbox,
   Search,
   ShieldCheck,
   Stethoscope,
   Users,
 } from "lucide-react";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { formatShortDate } from "@/lib/dates";
+import { getPatientRecord } from "@/lib/mock-data";
 import { useDemoState } from "@/lib/demo/store";
 import { getPatients } from "@/lib/mock-data";
 import type { PatientPriority } from "@/lib/types";
@@ -35,10 +38,29 @@ const statusLabels = {
 };
 
 export default function ClinicianDashboardPage() {
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "needs_review" | "stable" | "improving">("all");
+  const [priorityFilter, setPriorityFilter] = useState<"all" | PatientPriority>("all");
+
   // Demo data is built in the browser: dates are relative to today, and the
   // demo patient reflects what happened in the patient app (lib/demo/store).
   const demoState = useDemoState();
-  const patients = useMemo(() => (demoState ? getPatients(new Date(), demoState) : []), [demoState]);
+  const now = useMemo(() => new Date(), []);
+  const patients = useMemo(() => (demoState ? getPatients(now, demoState) : []), [demoState, now]);
+  const filteredPatients = useMemo(() => {
+    const normalized = query.trim().toLowerCase();
+    return patients.filter((patient) => {
+      const matchesText =
+        !normalized ||
+        [patient.name, patient.mainConcern, patient.goal, patient.nextAction]
+          .join(" ")
+          .toLowerCase()
+          .includes(normalized);
+      const matchesStatus = statusFilter === "all" || patient.status === statusFilter;
+      const matchesPriority = priorityFilter === "all" || patient.priority === priorityFilter;
+      return matchesText && matchesStatus && matchesPriority;
+    });
+  }, [patients, priorityFilter, query, statusFilter]);
 
   const needsReview = patients.filter(
     (patient) => patient.status === "needs_review",
@@ -47,6 +69,14 @@ export default function ClinicianDashboardPage() {
     (total, patient) => total + patient.openSignals,
     0,
   );
+  const unreadMessages = patients.reduce(
+    (total, patient) => total + patient.unreadMessages,
+    0,
+  );
+  const dueTasks = patients.reduce((total, patient) => {
+    const record = getPatientRecord(patient.id, now, demoState);
+    return total + record.tasks.filter((task) => task.status === "todo").length;
+  }, 0);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -66,13 +96,20 @@ export default function ClinicianDashboardPage() {
             </p>
           </div>
 
-          <Button variant="secondary" className="w-fit gap-2">
-            <Search className="size-4" />
-            Search patients
-          </Button>
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:min-w-[320px]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search patients, concerns, actions"
+                className="pl-9"
+              />
+            </div>
+          </div>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-5">
           <div className="rounded-lg border bg-card p-4 shadow-sm">
             <div className="flex items-center justify-between">
               <p className="text-sm font-medium text-muted-foreground">
@@ -102,6 +139,26 @@ export default function ClinicianDashboardPage() {
             </div>
             <p className="mt-3 text-3xl font-semibold">{openSignals}</p>
           </div>
+
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                Unread messages
+              </p>
+              <Inbox className="size-4 text-primary" />
+            </div>
+            <p className="mt-3 text-3xl font-semibold">{unreadMessages}</p>
+          </div>
+
+          <div className="rounded-lg border bg-card p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-medium text-muted-foreground">
+                Doctor tasks
+              </p>
+              <Stethoscope className="size-4 text-primary" />
+            </div>
+            <p className="mt-3 text-3xl font-semibold">{dueTasks}</p>
+          </div>
         </section>
 
         <section className="rounded-lg border bg-card shadow-sm">
@@ -117,11 +174,36 @@ export default function ClinicianDashboardPage() {
             </Badge>
           </div>
 
+          <div className="flex flex-wrap gap-2 border-b p-4">
+            {(["all", "needs_review", "stable", "improving"] as const).map((status) => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setStatusFilter(status)}
+                className="capitalize"
+              >
+                {status === "all" ? "All statuses" : statusLabels[status]}
+              </Button>
+            ))}
+            {(["all", "high", "medium", "low"] as const).map((priority) => (
+              <Button
+                key={priority}
+                variant={priorityFilter === priority ? "default" : "secondary"}
+                size="sm"
+                onClick={() => setPriorityFilter(priority)}
+                className="capitalize"
+              >
+                {priority === "all" ? "All priorities" : `${priority} priority`}
+              </Button>
+            ))}
+          </div>
+
           <div className="divide-y">
-            {patients.map((patient) => (
+            {filteredPatients.map((patient) => (
               <article
                 key={patient.id}
-                className="grid gap-4 p-4 transition hover:bg-muted/60 lg:grid-cols-[minmax(0,1.1fr)_180px_minmax(0,1fr)_auto]"
+                className="grid gap-4 p-4 transition hover:bg-muted/60 lg:grid-cols-[minmax(0,1.1fr)_180px_minmax(0,1fr)_190px]"
               >
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
@@ -165,9 +247,15 @@ export default function ClinicianDashboardPage() {
                 </div>
 
                 <div className="flex items-center justify-between gap-4 lg:justify-end">
-                  <div className="text-sm">
-                    <span className="font-semibold">{patient.openSignals}</span>
-                    <span className="ml-1 text-muted-foreground">signals</span>
+                  <div className="space-y-1 text-sm">
+                    <div>
+                      <span className="font-semibold">{patient.openSignals}</span>
+                      <span className="ml-1 text-muted-foreground">signals</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">{patient.unreadMessages}</span>
+                      <span className="ml-1 text-muted-foreground">unread</span>
+                    </div>
                   </div>
                   <Button asChild className="gap-2">
                     <Link href={`/clinician/${patient.id}`}>
@@ -178,6 +266,11 @@ export default function ClinicianDashboardPage() {
                 </div>
               </article>
             ))}
+            {filteredPatients.length === 0 && (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                No patients match the current filters.
+              </div>
+            )}
           </div>
         </section>
       </div>

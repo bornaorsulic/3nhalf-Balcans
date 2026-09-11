@@ -212,6 +212,92 @@ export function buildDemoClinicianRecord(now: Date, state: DemoState | null): Cl
         citations: [demoEvidence[0]],
       },
     ],
+    tasks: [
+      {
+        id: "task-demo-1",
+        title: "Review glucose trend and decide whether to add HbA1c",
+        status: "todo",
+        priority: "high",
+        due: toISODate(addDays(now, 1)),
+      },
+      {
+        id: "task-demo-2",
+        title: "Send patient-friendly sleep and recovery summary",
+        status: approvedAt ? "done" : "todo",
+        priority: "medium",
+        due: toISODate(addDays(now, 1)),
+      },
+      {
+        id: "task-demo-3",
+        title: "Check whether recent stress or illness explains hs-CRP",
+        status: "todo",
+        priority: "medium",
+        due: toISODate(addDays(now, 2)),
+      },
+    ],
+    riskPrevention: [
+      {
+        id: "risk-demo-1",
+        title: "Metabolic drift",
+        severity: "high",
+        explanation:
+          "Fasting glucose is in the impaired fasting glucose range and has increased from the prior baseline.",
+        preventionStep:
+          "Repeat glucose with HbA1c or insulin markers and review sleep, nutrition timing, and activity pattern.",
+        sources: ["Bloodwork", "Amass Research"],
+      },
+      {
+        id: "risk-demo-2",
+        title: "Recovery load",
+        severity: "medium",
+        explanation:
+          "Sleep duration and HRV declined during the same window as repeated fatigue diary entries.",
+        preventionStep:
+          "Ask about workload, travel, alcohol intake, training load, and bedtime regularity before interpreting as disease.",
+        sources: ["Diary", "Wearable"],
+      },
+      {
+        id: "risk-demo-3",
+        title: "Inflammation context",
+        severity: "medium",
+        explanation:
+          "hs-CRP is elevated, but the value needs clinical context before it is treated as a persistent risk marker.",
+        preventionStep:
+          "Screen for recent infection, injury, dental issues, intense training, or inflammatory symptoms.",
+        sources: ["Bloodwork"],
+      },
+    ],
+    files: [
+      {
+        id: "file-demo-1",
+        name: "bloodwork-september.pdf",
+        kind: "labs",
+        status: "processed",
+        uploadedAt: labDate,
+      },
+      {
+        id: "file-demo-2",
+        name: "wearable-21-day-export.csv",
+        kind: "wearable_export",
+        status: "processed",
+        uploadedAt: toISODate(addDays(now, DEMO_OFFSETS.sleepDeclineNoticed)),
+      },
+      {
+        id: "file-demo-3",
+        name: "genetic-risk-panel.pdf",
+        kind: "genetic_test",
+        status: "needs_review",
+        uploadedAt: toISODate(addDays(now, -12)),
+      },
+    ],
+    notes: [
+      {
+        id: "note-demo-1",
+        createdAt: toISODate(addDays(now, -1)),
+        author: clinician.name,
+        body: "Prioritize appointment questions around sleep disruption, stress load, and repeat metabolic testing.",
+      },
+    ],
   };
 }
 
@@ -227,6 +313,7 @@ export function buildDemoRosterItem(now: Date, state: DemoState | null): Patient
     lastUpdate: lastEvent,
     priority: approved ? "medium" : "high",
     openSignals: record.biomarkers.filter((b) => b.status !== "optimal").length + record.wearables.filter((w) => w.status === "declining").length,
+    unreadMessages: approved ? 0 : Math.max(1, buildDemoDataset(now, state).questions.length),
     nextAction: approved ? "Summary sent — discuss at follow-up visit" : "Review sleep, glucose, and inflammation context",
     assignedClinician: clinician.name,
   };

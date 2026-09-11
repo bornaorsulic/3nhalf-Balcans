@@ -22,8 +22,41 @@ export type PatientRosterItem = PatientProfile & {
   lastUpdate: string;
   priority: PatientPriority;
   openSignals: number;
+  unreadMessages: number;
   nextAction: string;
   assignedClinician: string;
+};
+
+export type ClinicianTask = {
+  id: string;
+  title: string;
+  status: "todo" | "done";
+  priority: PatientPriority;
+  due: string;
+};
+
+export type RiskPreventionItem = {
+  id: string;
+  title: string;
+  severity: PatientPriority;
+  explanation: string;
+  preventionStep: string;
+  sources: SourceLabel[];
+};
+
+export type PatientFileUpload = {
+  id: string;
+  name: string;
+  kind: "labs" | "genetic_test" | "clinical_note" | "wearable_export";
+  status: "processed" | "queued" | "needs_review";
+  uploadedAt: string;
+};
+
+export type ClinicianNote = {
+  id: string;
+  createdAt: string;
+  author: string;
+  body: string;
 };
 
 export type Biomarker = {
@@ -87,4 +120,8 @@ export type ClinicianPatientRecord = PatientDemoResponse & {
   summary: ClinicianSummary;
   evidence: EvidenceCitation[];
   initialChat: ChatMessage[];
+  tasks: ClinicianTask[];
+  riskPrevention: RiskPreventionItem[];
+  files: PatientFileUpload[];
+  notes: ClinicianNote[];
 };
