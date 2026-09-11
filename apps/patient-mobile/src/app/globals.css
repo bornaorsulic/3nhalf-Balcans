@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "../styles/theme.css";
+
+/* Maps the raw tokens from theme.css to Tailwind utility names. */
+@theme inline {
+  --color-backdrop: var(--pm-backdrop);
+  --color-canvas: var(--pm-canvas);
+  --color-surface: var(--pm-surface);
+  --color-surface-muted: var(--pm-surface-muted);
+  --color-line: var(--pm-line);
+
+  --color-ink: var(--pm-ink);
+  --color-ink-secondary: var(--pm-ink-secondary);
+  --color-ink-muted: var(--pm-ink-muted);
+
+  --color-primary: var(--pm-primary);
+  --color-primary-strong: var(--pm-primary-strong);
+  --color-primary-soft: var(--pm-primary-soft);
+  --color-on-primary: var(--pm-on-primary);
+
+  --color-good: var(--pm-good);
+  --color-good-soft: var(--pm-good-soft);
+  --color-warning: var(--pm-warning);
+  --color-warning-soft: var(--pm-warning-soft);
+  --color-critical: var(--pm-critical);
+  --color-critical-soft: var(--pm-critical-soft);
+
+  --radius-card: var(--pm-radius-card);
+  --radius-control: var(--pm-radius-control);
+  --shadow-card: var(--pm-shadow-card);
+  --shadow-frame: var(--pm-shadow-frame);
+
+  --font-sans: var(--pm-font-sans);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--pm-backdrop);
+  color: var(--pm-ink);
+  font-family: var(--pm-font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pm-primary);
+  outline-offset: 2px;
+}

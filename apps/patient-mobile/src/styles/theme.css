@@ -1,0 +1,55 @@
+/*
+ * Design tokens for the patient app.
+ *
+ * This is the ONLY file that holds raw colors, radii, shadows and fonts.
+ * Components never use hex values or Tailwind palette colors (no `bg-teal-600`);
+ * they use the semantic names mapped in `src/app/globals.css` (`bg-surface`,
+ * `text-ink-muted`, `bg-primary`, ...).
+ *
+ * To apply the team style: replace the values below (keep the variable names),
+ * or swap this file for the team's token file and re-map the names in
+ * globals.css. Nothing else needs to change.
+ */
+
+:root {
+  /* Surfaces */
+  --pm-backdrop: #e7e4dc; /* behind the phone frame on desktop */
+  --pm-canvas: #f6f5f1; /* app background */
+  --pm-surface: #ffffff; /* cards */
+  --pm-surface-muted: #efede6; /* inset areas, inactive chips */
+  --pm-line: #e3e0d8; /* borders, dividers, chart gridlines */
+
+  /* Text */
+  --pm-ink: #1f2a28;
+  --pm-ink-secondary: #45524f;
+  --pm-ink-muted: #66726e;
+
+  /* Brand */
+  --pm-primary: #2f6f62;
+  --pm-primary-strong: #245a4f; /* hover / pressed */
+  --pm-primary-soft: #e3efeb; /* tinted backgrounds */
+  --pm-on-primary: #ffffff;
+
+  /* Status: only used when the color MEANS something (always paired with icon + label) */
+  --pm-good: #1d7a45;
+  --pm-good-soft: #e4f3ea;
+  --pm-warning: #8a5a00;
+  --pm-warning-soft: #fbf0d9;
+  --pm-critical: #b42828;
+  --pm-critical-soft: #fbe6e4;
+
+  /* Charts */
+  --pm-chart-line: var(--pm-primary);
+  --pm-chart-area: rgba(47, 111, 98, 0.1);
+  --pm-chart-band: rgba(29, 122, 69, 0.08); /* healthy reference range */
+  --pm-chart-grid: var(--pm-line);
+
+  /* Shape & depth */
+  --pm-radius-card: 1.25rem;
+  --pm-radius-control: 0.875rem;
+  --pm-shadow-card: 0 1px 2px rgba(31, 42, 40, 0.04), 0 4px 16px rgba(31, 42, 40, 0.05);
+  --pm-shadow-frame: 0 24px 64px rgba(31, 42, 40, 0.18);
+
+  /* Type (the font file itself is loaded in src/app/layout.tsx) */
+  --pm-font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
