@@ -7,51 +7,75 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Database,
+  ExternalLink,
   FileText,
+  ListChecks,
   MessageSquareText,
   Search,
   Send,
   ShieldCheck,
+  Smartphone,
   Sparkles,
 } from "lucide-react";
 
+import { SourceBadge } from "@/components/source-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { DEMO_PATIENT_ID, REVIEW_SUMMARY_ID } from "@/lib/demo/data";
+import { buildDemoDataset } from "@/lib/demo/dataset";
+import { updateDemoState, useDemoState, type DemoState } from "@/lib/demo/store";
+import { formatShortDate } from "@/lib/dates";
 import { getPatientRecord } from "@/lib/mock-data";
-import type { ChatMessage } from "@/lib/types";
+import type { Biomarker, ChatMessage, WearableTrend } from "@/lib/types";
 
-const sourceStyles: Record<string, string> = {
-  Diary: "bg-sky-50 text-sky-800 border-sky-200",
-  Wearable: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  Bloodwork: "bg-rose-50 text-rose-800 border-rose-200",
-  "Genetic test": "bg-violet-50 text-violet-800 border-violet-200",
-  "Amass Research": "bg-amber-50 text-amber-800 border-amber-200",
-  Clinician: "bg-slate-100 text-slate-800 border-slate-200",
+// Status colors come from app/theme.css (shared with the patient app).
+const biomarkerStatusStyles: Record<Biomarker["status"], string> = {
+  optimal: "text-good",
+  borderline: "text-warning",
+  elevated: "text-warning",
+  low: "text-warning",
 };
 
-function SourceBadge({ source }: { source: string }) {
-  return (
-    <span
-      className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-medium ${sourceStyles[source] ?? "border-border bg-muted text-muted-foreground"}`}
-    >
-      {source}
-    </span>
-  );
-}
+const trendStyles: Record<WearableTrend["status"], string> = {
+  improving: "text-good",
+  stable: "text-muted-foreground",
+  declining: "text-warning",
+};
 
 export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
-  const record = getPatientRecord(patientId);
+  // Demo data is built in the browser (dates relative to today, plus what the
+  // patient did in the patient app). null during server render.
+  const demoState = useDemoState();
+  if (!demoState) {
+    return <main className="min-h-screen bg-background" aria-busy="true" />;
+  }
+  return <PatientDetail key={patientId} patientId={patientId} demoState={demoState} />;
+}
+
+function PatientDetail({ patientId, demoState }: { patientId: string; demoState: DemoState }) {
+  const now = useMemo(() => new Date(), []);
+  const record = useMemo(() => getPatientRecord(patientId, now, demoState), [patientId, now, demoState]);
   const { patient, biomarkers, wearables, timeline, summary, evidence } = record;
 
+  const isDemo = patient.id === DEMO_PATIENT_ID;
+  const demo = useMemo(() => (isDemo ? buildDemoDataset(now, demoState) : null), [isDemo, now, demoState]);
+  const draft = demo?.summaries.find((s) => s.id === REVIEW_SUMMARY_ID);
+
   const [question, setQuestion] = useState("");
-  const [approved, setApproved] = useState(false);
+  // The demo patient's approval is shared with the patient app; other patients keep local state.
+  const [localApproved, setLocalApproved] = useState(false);
+  const approvedAt = isDemo ? demoState.approvals[REVIEW_SUMMARY_ID] : undefined;
+  const approved = isDemo ? Boolean(approvedAt) : localApproved;
   const [messages, setMessages] = useState<ChatMessage[]>(record.initialChat);
 
-  const statusText = useMemo(() => {
-    if (approved) return "Patient summary approved";
-    return "Clinician review required";
-  }, [approved]);
+  function approve() {
+    if (!isDemo) {
+      setLocalApproved(true);
+      return;
+    }
+    updateDemoState((s) => ({ ...s, approvals: { ...s.approvals, [REVIEW_SUMMARY_ID]: new Date().toISOString() } }));
+  }
 
   function askMockAgent() {
     if (!question.trim()) return;
@@ -94,11 +118,11 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
 
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant={approved ? "default" : "secondary"}>
-              {statusText}
+              {approved ? "Patient summary approved" : "Clinician review required"}
             </Badge>
-            <Button onClick={() => setApproved(true)} className="gap-2">
+            <Button onClick={approve} disabled={approved} className="gap-2">
               <CheckCircle2 className="size-4" />
-              Approve patient summary
+              {approved ? "Sent to patient" : "Approve patient summary"}
             </Button>
           </div>
         </header>
@@ -114,7 +138,9 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Review status</dt>
-                  <dd className="font-medium">Needs preventive-care review</dd>
+                  <dd className="font-medium">
+                    {approved ? "Summary approved, follow-up scheduled" : "Needs preventive-care review"}
+                  </dd>
                 </div>
                 <div>
                   <dt className="text-muted-foreground">Data sources</dt>
@@ -137,15 +163,7 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                   <div key={trend.name} className="rounded-md bg-muted p-3">
                     <div className="flex items-start justify-between gap-2">
                       <p className="text-sm font-medium">{trend.name}</p>
-                      <span
-                        className={
-                          trend.status === "improving"
-                            ? "text-sm font-semibold text-primary"
-                            : "text-sm font-semibold text-destructive"
-                        }
-                      >
-                        {trend.change}
-                      </span>
+                      <span className={`text-sm font-semibold ${trendStyles[trend.status]}`}>{trend.change}</span>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Over {trend.period}
@@ -154,6 +172,27 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                 ))}
               </div>
             </div>
+
+            {demo && (
+              <div className="rounded-lg border bg-card p-4 shadow-sm">
+                <div className="mb-3 flex items-center gap-2">
+                  <ListChecks className="size-4 text-primary" />
+                  <p className="text-sm font-semibold">Patient&apos;s questions for the visit</p>
+                </div>
+                {demo.questions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No questions yet.</p>
+                ) : (
+                  <ul className="space-y-2 text-sm">
+                    {demo.questions.map((q) => (
+                      <li key={q.id} className="rounded-md bg-muted p-2.5 leading-5">
+                        {q.text}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="mt-3 text-xs text-muted-foreground">Prepared by the patient in the patient app.</p>
+              </div>
+            )}
           </aside>
 
           <section className="space-y-5">
@@ -188,6 +227,37 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
               </p>
             </div>
 
+            {draft?.body && (
+              <div className="rounded-lg border bg-card p-5 shadow-sm">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Smartphone className="size-4 text-primary" />
+                    Patient-facing summary
+                  </div>
+                  <Badge variant={approved ? "default" : "secondary"}>
+                    {approved && approvedAt ? `Sent ${formatShortDate(approvedAt)}` : "Draft · not visible to patient"}
+                  </Badge>
+                </div>
+                <h3 className="text-base font-semibold">{draft.title}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{draft.body.whatWeSee}</p>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{draft.body.whatItMeans}</p>
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {!approved && (
+                    <Button onClick={approve} className="gap-2">
+                      <CheckCircle2 className="size-4" />
+                      Approve and send to patient
+                    </Button>
+                  )}
+                  <Button variant="secondary" asChild className="gap-2">
+                    <Link href="/patient/inbox" target="_blank">
+                      Open patient app
+                      <ExternalLink className="size-4" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
               <div className="rounded-lg border bg-card p-5 shadow-sm">
                 <div className="mb-4 flex items-center gap-2">
@@ -201,8 +271,8 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                       className="border-l-2 border-border pl-4"
                     >
                       <div className="flex flex-wrap items-center gap-2">
-                        <time className="text-xs font-medium text-muted-foreground">
-                          {event.date}
+                        <time dateTime={event.date} className="text-xs font-medium text-muted-foreground">
+                          {formatShortDate(event.date)}
                         </time>
                         <SourceBadge source={event.source} />
                       </div>
@@ -236,19 +306,13 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-base font-semibold">
+                          <p className="whitespace-nowrap text-base font-semibold">
                             {marker.value}
                             <span className="ml-1 text-xs font-normal text-muted-foreground">
                               {marker.unit}
                             </span>
                           </p>
-                          <p
-                            className={
-                              marker.status === "optimal"
-                                ? "text-xs capitalize text-primary"
-                                : "text-xs capitalize text-destructive"
-                            }
-                          >
+                          <p className={`text-xs capitalize ${biomarkerStatusStyles[marker.status]}`}>
                             {marker.status}
                           </p>
                         </div>
@@ -322,6 +386,16 @@ export function ClinicianPatientDetail({ patientId }: { patientId: string }) {
                     <p className="mt-1 text-xs leading-5 text-muted-foreground">
                       {item.relevance}
                     </p>
+                    {item.url && (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                      >
+                        Open study <ExternalLink className="size-3" />
+                      </a>
+                    )}
                   </article>
                 ))}
               </div>

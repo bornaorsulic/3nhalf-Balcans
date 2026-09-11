@@ -5,10 +5,12 @@ import {
   Activity,
   MessageSquareText,
   MonitorCog,
+  RotateCcw,
   Smartphone,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { resetDemoState } from "@/lib/demo/store";
 
 export default function Home() {
   return (
@@ -58,6 +60,22 @@ export default function Home() {
               <span>Open patient view</span>
             </Button>
           </Link>
+        </div>
+
+        <div className="mt-5 rounded-lg border bg-card p-5 text-card-foreground shadow-sm">
+          <h2 className="text-sm font-semibold">Demo flow: one patient, two views</h2>
+          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
+            <li>Open the patient view as Sofia Lind: log today&apos;s check-in and ask the Health Agent why she is tired.</li>
+            <li>Open the clinician view: the check-in appears in Sofia&apos;s timeline, with the same numbers.</li>
+            <li>Approve the patient-facing summary: it arrives in the patient app&apos;s Inbox, even in another tab.</li>
+          </ol>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button variant="outline" size="sm" onClick={() => resetDemoState()} className="gap-2">
+              <RotateCcw className="size-4" />
+              Reset demo data
+            </Button>
+            <span className="text-xs text-muted-foreground">Clears check-ins, questions and approvals made during a demo.</span>
+          </div>
         </div>
 
         <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">

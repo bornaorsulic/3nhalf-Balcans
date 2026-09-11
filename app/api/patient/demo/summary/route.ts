@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
-import { clinicianSummary } from "@/lib/mock-data";
+import { getPatientRecord } from "@/lib/mock-data";
 
 export function GET() {
-  return NextResponse.json(clinicianSummary);
+  return NextResponse.json(getPatientRecord("demo").summary);
 }

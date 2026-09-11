@@ -12,15 +12,20 @@ import {
   Users,
 } from "lucide-react";
 
+import { useMemo } from "react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { patients } from "@/lib/mock-data";
+import { formatShortDate } from "@/lib/dates";
+import { useDemoState } from "@/lib/demo/store";
+import { getPatients } from "@/lib/mock-data";
 import type { PatientPriority } from "@/lib/types";
 
+// Status colors come from app/theme.css (shared with the patient app).
 const priorityStyles: Record<PatientPriority, string> = {
-  high: "border-rose-200 bg-rose-50 text-rose-800",
-  medium: "border-amber-200 bg-amber-50 text-amber-800",
-  low: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  high: "border-critical/20 bg-critical-soft text-critical",
+  medium: "border-warning/20 bg-warning-soft text-warning",
+  low: "border-good/20 bg-good-soft text-good",
 };
 
 const statusLabels = {
@@ -30,6 +35,11 @@ const statusLabels = {
 };
 
 export default function ClinicianDashboardPage() {
+  // Demo data is built in the browser: dates are relative to today, and the
+  // demo patient reflects what happened in the patient app (lib/demo/store).
+  const demoState = useDemoState();
+  const patients = useMemo(() => (demoState ? getPatients(new Date(), demoState) : []), [demoState]);
+
   const needsReview = patients.filter(
     (patient) => patient.status === "needs_review",
   ).length;
@@ -139,7 +149,7 @@ export default function ClinicianDashboardPage() {
                   </p>
                   <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
                     <Clock3 className="size-3.5" />
-                    {patient.lastUpdate}
+                    {formatShortDate(patient.lastUpdate)}
                   </div>
                 </div>
 

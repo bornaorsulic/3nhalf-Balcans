@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "../vendor/shadcn-tailwind-4.13.0.css";
+@import "./theme.css";
 
 @utility scrollbar-thin {
   scrollbar-width: thin;
@@ -18,42 +19,9 @@
   scrollbar-gutter: stable;
 }
 
-:root {
-  --background: #f7f9f8;
-  --foreground: #16201d;
-  --card: #ffffff;
-  --card-foreground: #16201d;
-  --popover: #ffffff;
-  --popover-foreground: #16201d;
-  --primary: #145c52;
-  --primary-foreground: #ffffff;
-  --secondary: #e7efea;
-  --secondary-foreground: #22352f;
-  --muted: #edf2ef;
-  --muted-foreground: #66756f;
-  --accent: #dff4ef;
-  --accent-foreground: #123c37;
-  --destructive: #b42318;
-  --border: #dbe4df;
-  --input: #dbe4df;
-  --ring: #4d948b;
-  --chart-1: #145c52;
-  --chart-2: #6c7a89;
-  --chart-3: #b7791f;
-  --chart-4: #2f6fbb;
-  --chart-5: #9b3d62;
-  --radius: 0.5rem;
-  --sidebar: #eef4f1;
-  --sidebar-foreground: #16201d;
-  --sidebar-primary: #145c52;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #dff4ef;
-  --sidebar-accent-foreground: #123c37;
-  --sidebar-border: #d0ddd7;
-  --sidebar-ring: #4d948b;
-}
-
+/* All colors live in theme.css; this only maps names to Tailwind utilities. */
 @theme inline {
+  /* shadcn/ui names (clinician view, components/ui) */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -89,49 +57,63 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: Arial, Helvetica, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    "Liberation Mono", "Courier New", monospace;
+
+  /* Product names (patient view, shared status + source colors) */
+  --color-backdrop: var(--pm-backdrop);
+  --color-canvas: var(--pm-canvas);
+  --color-surface: var(--pm-surface);
+  --color-surface-muted: var(--pm-surface-muted);
+  --color-line: var(--pm-line);
+  --color-ink: var(--pm-ink);
+  --color-ink-secondary: var(--pm-ink-secondary);
+  --color-ink-muted: var(--pm-ink-muted);
+  --color-primary-strong: var(--pm-primary-strong);
+  --color-primary-soft: var(--pm-primary-soft);
+  --color-on-primary: var(--pm-on-primary);
+  --color-good: var(--pm-good);
+  --color-good-soft: var(--pm-good-soft);
+  --color-warning: var(--pm-warning);
+  --color-warning-soft: var(--pm-warning-soft);
+  --color-critical: var(--pm-critical);
+  --color-critical-soft: var(--pm-critical-soft);
+  --color-source-diary: var(--pm-source-diary);
+  --color-source-diary-soft: var(--pm-source-diary-soft);
+  --color-source-wearable: var(--pm-source-wearable);
+  --color-source-wearable-soft: var(--pm-source-wearable-soft);
+  --color-source-bloodwork: var(--pm-source-bloodwork);
+  --color-source-bloodwork-soft: var(--pm-source-bloodwork-soft);
+  --color-source-genetic: var(--pm-source-genetic);
+  --color-source-genetic-soft: var(--pm-source-genetic-soft);
+  --color-source-research: var(--pm-source-research);
+  --color-source-research-soft: var(--pm-source-research-soft);
+  --color-source-clinician: var(--pm-source-clinician);
+  --color-source-clinician-soft: var(--pm-source-clinician-soft);
+  --radius-card: var(--pm-radius-card);
+  --radius-control: var(--pm-radius-control);
+  --shadow-card: var(--pm-shadow-card);
+  --shadow-frame: var(--pm-shadow-frame);
+
+  --font-sans: var(--pm-font-sans);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1715;
-    --foreground: #ecf3f0;
-    --card: #15211e;
-    --card-foreground: #ecf3f0;
-    --popover: #15211e;
-    --popover-foreground: #ecf3f0;
-    --primary: #7ed6ca;
-    --primary-foreground: #0f1715;
-    --secondary: #22312d;
-    --secondary-foreground: #ecf3f0;
-    --muted: #22312d;
-    --muted-foreground: #a8b8b2;
-    --accent: #1c3c37;
-    --accent-foreground: #ccefe9;
-    --destructive: #ff8a80;
-    --border: #2d413c;
-    --input: #2d413c;
-    --ring: #7ed6ca;
-    --chart-1: #7ed6ca;
-    --chart-2: #9fb0c2;
-    --chart-3: #f2b84b;
-    --chart-4: #7daef0;
-    --chart-5: #e48bad;
-    --sidebar: #15211e;
-    --sidebar-foreground: #ecf3f0;
-    --sidebar-primary: #7ed6ca;
-    --sidebar-primary-foreground: #0f1715;
-    --sidebar-accent: #1c3c37;
-    --sidebar-accent-foreground: #ccefe9;
-    --sidebar-border: #2d413c;
-    --sidebar-ring: #7ed6ca;
+/* Tailwind v4 defaults borders to currentColor; use the theme's line color instead. */
+@layer base {
+  *,
+  ::before,
+  ::after {
+    border-color: var(--border);
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--pm-font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--pm-primary);
+  outline-offset: 2px;
 }
