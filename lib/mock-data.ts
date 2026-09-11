@@ -97,6 +97,51 @@ function otherRecords(now: Date, demoSummary: ClinicianSummary): Record<string, 
       },
       evidence,
       initialChat,
+      tasks: [
+        {
+          id: "task-m1",
+          title: "Review ApoB trend against family history",
+          status: "todo",
+          priority: "medium",
+          due: day(now, 1),
+        },
+        {
+          id: "task-m2",
+          title: "Prepare recovery-load question for next visit",
+          status: "todo",
+          priority: "low",
+          due: day(now, 3),
+        },
+      ],
+      riskPrevention: [
+        {
+          id: "risk-m1",
+          title: "Cardiometabolic risk signal",
+          severity: "medium",
+          explanation:
+            "ApoB is elevated while HbA1c is borderline, so lipid and glucose risk should be reviewed together.",
+          preventionStep:
+            "Discuss nutrition pattern, training recovery, and whether follow-up lipid testing is needed.",
+          sources: ["Bloodwork", "Amass Research"],
+        },
+      ],
+      files: [
+        {
+          id: "file-m1",
+          name: "lipids-september.pdf",
+          kind: "labs",
+          status: "processed",
+          uploadedAt: day(now, -8),
+        },
+      ],
+      notes: [
+        {
+          id: "note-m1",
+          createdAt: day(now, -1),
+          author: "Dr. Eriksson",
+          body: "Ask about recent dietary changes and whether increased training volume explains recovery dip.",
+        },
+      ],
     },
     "linnea-holm": {
       patient: roster[1],
@@ -150,6 +195,44 @@ function otherRecords(now: Date, demoSummary: ClinicianSummary): Record<string, 
       },
       evidence,
       initialChat,
+      tasks: [
+        {
+          id: "task-l1",
+          title: "Confirm sleep routine adherence",
+          status: "todo",
+          priority: "low",
+          due: day(now, 2),
+        },
+      ],
+      riskPrevention: [
+        {
+          id: "risk-l1",
+          title: "Sleep variability improving",
+          severity: "low",
+          explanation:
+            "Sleep consistency and readiness improved after stable diary entries, reducing immediate review priority.",
+          preventionStep:
+            "Reinforce bedtime routine and check whether morning brain fog continues.",
+          sources: ["Diary", "Wearable"],
+        },
+      ],
+      files: [
+        {
+          id: "file-l1",
+          name: "sleep-export.csv",
+          kind: "wearable_export",
+          status: "processed",
+          uploadedAt: day(now, -2),
+        },
+      ],
+      notes: [
+        {
+          id: "note-l1",
+          createdAt: day(now, -2),
+          author: "Dr. Eriksson",
+          body: "Good response to routine intervention; keep focus on adherence and symptoms.",
+        },
+      ],
     },
   };
 }
@@ -167,6 +250,7 @@ function otherRoster(now: Date): PatientRosterItem[] {
       lastUpdate: day(now, -1),
       priority: "medium",
       openSignals: 3,
+      unreadMessages: 1,
       nextAction: "Check lipid trend and recovery load",
       assignedClinician: "Dr. Eriksson",
     },
@@ -181,6 +265,7 @@ function otherRoster(now: Date): PatientRosterItem[] {
       lastUpdate: day(now, -2),
       priority: "low",
       openSignals: 2,
+      unreadMessages: 0,
       nextAction: "Confirm diary adherence and wearable trend",
       assignedClinician: "Dr. Eriksson",
     },
