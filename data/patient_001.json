@@ -1,0 +1,87 @@
+{
+  "patient": {
+    "id": "P001",
+    "name": "Anna Morris",
+    "age": 42,
+    "sex": "female"
+  },
+
+  "diary": [
+    {
+      "date": "2026-06-10",
+      "text": "Sleeping well and feeling energetic."
+    },
+    {
+      "date": "2026-07-15",
+      "text": "Feeling more tired during the day."
+    },
+    {
+      "date": "2026-08-12",
+      "text": "Work has been stressful and I have started waking up during the night."
+    },
+    {
+      "date": "2026-09-05",
+      "text": "I feel exhausted most mornings and my sleep has been poor."
+    }
+  ],
+
+  "labs": [
+    {
+      "date": "2026-06-01",
+      "biomarker": "HbA1c",
+      "value": 5.4,
+      "unit": "%"
+    },
+    {
+      "date": "2026-07-01",
+      "biomarker": "HbA1c",
+      "value": 5.6,
+      "unit": "%"
+    },
+    {
+      "date": "2026-08-01",
+      "biomarker": "HbA1c",
+      "value": 5.8,
+      "unit": "%"
+    },
+    {
+      "date": "2026-09-01",
+      "biomarker": "HbA1c",
+      "value": 5.9,
+      "unit": "%"
+    },
+    {
+      "date": "2026-09-01",
+      "biomarker": "glucose",
+      "value": 6.1,
+      "unit": "mmol/L"
+    }
+  ],
+
+  "wearables": [
+    {
+      "date": "2026-06-01",
+      "sleep_hours": 7.2,
+      "hrv": 55
+    },
+    {
+      "date": "2026-07-01",
+      "sleep_hours": 6.8,
+      "hrv": 51
+    },
+    {
+      "date": "2026-08-01",
+      "sleep_hours": 6.5,
+      "hrv": 47
+    },
+    {
+      "date": "2026-09-01",
+      "sleep_hours": 6.2,
+      "hrv": 42
+    }
+  ],
+
+  "genetic_tests": [],
+
+  "files": []
+}
