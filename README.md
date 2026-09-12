@@ -100,7 +100,7 @@ lib/mock-data.ts      clinician roster and records
 backend/              Python: database access, retrieval, agent stand-in, FastAPI app
 scripts/              database setup, ingest, inspection, demo export
 data/                 patient files loaded into the database
-docs/                 API contract and database documentation
+docs/                 API contract, database and Health Agent documentation
 ```
 
 ## Status
@@ -110,5 +110,5 @@ docs/                 API contract and database documentation
 | Patient app | Runs on the browser mock **or** the PostgreSQL backend (`NEXT_PUBLIC_API_MODE`). |
 | Clinician dashboard | Runs on the shared TypeScript demo data; not yet moved to the backend. |
 | Database | Schema, ingest and read/write API working (see docs/DATABASE.md). |
-| Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape. |
+| Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape. Plan: [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md). |
 | Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs. |

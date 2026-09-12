@@ -52,6 +52,8 @@ GET  /api/v1/research?q=                                   research evidence (Am
 
 ## Person 1 — AI / backend
 
+Full plan: [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md).
+
 Replace `answer()` in `backend/agent.py` with the Nebius call. Keep the reply shape
 (`content`, `sources`, `confidence`, `safety`, `followUps`, `questionForClinician`).
 `backend/retrieval.get_patient_context()` gives you the patient's full context.
