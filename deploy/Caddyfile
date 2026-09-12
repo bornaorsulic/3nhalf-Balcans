@@ -1,0 +1,25 @@
+# One origin for both services.
+#
+# Not cosmetic: sessions are HttpOnly cookies and the API runs CORS with
+# credentials. Split across two hostnames, Safari and Chrome block the cookie as
+# third-party and login fails for some visitors with no error anyone can see.
+#
+# TLS is terminated at the Nebius tunnel edge, so this speaks plain HTTP on 8080.
+# For the public-IP-and-domain setup instead, see docs/DEPLOY.md.
+
+{
+	admin off
+	auto_https off
+}
+
+:8080 {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}

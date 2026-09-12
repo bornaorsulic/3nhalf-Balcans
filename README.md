@@ -39,7 +39,8 @@ In a second terminal:
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in. Every demo account uses the password
+Open http://localhost:5173 and sign in. To put it on a URL instead of everyone's laptop,
+see [docs/DEPLOY.md](docs/DEPLOY.md). Every demo account uses the password
 `demo1234`; the landing page lists them.
 
 | Account | Who |
@@ -103,6 +104,7 @@ appointment from her month calendar against the doctor's published times.
 | Database and scripts | [docs/DATABASE.md](docs/DATABASE.md) |
 | Health Agent plan (Nebius) | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
 | Team split and contracts | [TEAM_CONTRACT.md](TEAM_CONTRACT.md) |
+| Hosting it on Nebius | [docs/DEPLOY.md](docs/DEPLOY.md) |
 
 The frontend never calls Nebius, Amass or the database directly: it calls the API, and
 the backend decides what is real and what is still a stand-in.
@@ -131,6 +133,7 @@ lib/patient-api/      patient app contract and HTTP client
 lib/care-api.ts       connections, messages, calendar, profiles
 backend/              FastAPI app, auth, retrieval, care, schedule, agent stand-in
 scripts/              database setup, ingest, seed, demo export
+deploy/               Dockerfiles, Compose and proxy config for hosting on Nebius
 docs/                 API, database, accounts and Health Agent documentation
 ```
 

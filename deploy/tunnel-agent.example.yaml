@@ -1,0 +1,22 @@
+# Nebius Tunnels agent. Runs on the VM host (not in Compose) and dials out, so the
+# VM needs no public IP and no inbound firewall rule.
+#
+# Fill in the three ids from the setup in docs/DEPLOY.md, then:
+#   ./nebius-tunnel-agent -config ./tunnel-agent.yaml
+#
+# The public URL becomes:
+#   https://<service name>-<masked tunnel id>.tunnel.applications.<region>.nebius.cloud
+
+tunnel_id: <tunnel-id>
+
+iam:
+  service_account:
+    service_account_id: <service-account-id>
+    public_key_id: <authorized-key-id>
+    private_key_path: /opt/longevity/private_key.pem
+
+services:
+  # One service, not two: everything goes through Caddy so the app has one origin.
+  - name: web
+    target: localhost:8080
+    type: http
