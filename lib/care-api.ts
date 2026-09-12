@@ -7,6 +7,7 @@
  */
 
 import useSWR from "swr";
+import { downloadFromApi } from "@/lib/download";
 import { apiJson } from "@/lib/session";
 import type { ClinicianAgentReply, ResearchAgentReply, SummaryDraft } from "@/lib/types";
 import type { ChatTurn } from "@/lib/patient-api/types";
@@ -251,6 +252,18 @@ export const createSummary = (patientId: string, draft: SummaryDraft) =>
 
 export const approveSummary = (patientId: string, summaryId: string) =>
   apiJson<unknown>(`/patients/${patientId}/summaries/${summaryId}/approve`, { method: "POST" });
+
+export const exportSummaryPdf = (patientId: string, summaryId: string) =>
+  downloadFromApi(
+    `/patients/${patientId}/summaries/${encodeURIComponent(summaryId)}/export.pdf`,
+    `approved-summary-${new Date().toISOString().slice(0, 10)}.pdf`,
+  );
+
+export const exportRecentResults = (patientId: string, format: "csv" | "json" = "csv") =>
+  downloadFromApi(
+    `/patients/${patientId}/results/export?format=${format}`,
+    `recent-results-${new Date().toISOString().slice(0, 10)}.${format}`,
+  );
 
 function readAsBase64(file: File) {
   return new Promise<string>((resolve, reject) => {

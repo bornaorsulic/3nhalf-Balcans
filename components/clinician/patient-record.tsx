@@ -6,6 +6,7 @@ import {
   ArrowLeft,
   CheckCircle2,
   ClipboardCheck,
+  Download,
   FileText,
   History,
   MessageSquareText,
@@ -27,6 +28,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   approveSummary,
   editSummary,
+  exportRecentResults,
+  exportSummaryPdf,
   markThreadRead,
   sendMessage,
   useAudit,
@@ -45,6 +48,8 @@ import type { PatientSummary } from "@/lib/patient-api/types";
 /** A connected patient's record, read from the backend. */
 export function PatientRecord({ patientId }: { patientId: string }) {
   const [tab, setTab] = useState("overview");
+  const [exportingResults, setExportingResults] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const { data: profile, error } = usePatientProfile(patientId);
   const { data: connections } = useConnections();
   const connection = connections?.find((c) => c.patientId === patientId && c.status === "accepted");
@@ -80,8 +85,29 @@ export function PatientRecord({ patientId }: { patientId: string }) {
             </p>
           )}
         </div>
-        {connection && <Badge variant="secondary">Connected {formatRelativeDay(connection.respondedAt ?? connection.createdAt)}</Badge>}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="secondary"
+            disabled={exportingResults}
+            onClick={async () => {
+              setExportError(null);
+              setExportingResults(true);
+              try {
+                await exportRecentResults(patientId, "csv");
+              } catch (caught) {
+                setExportError(caught instanceof Error ? caught.message : "Could not export recent results");
+              } finally {
+                setExportingResults(false);
+              }
+            }}
+            className="gap-2"
+          >
+            <Download className="size-4" /> {exportingResults ? "Exporting..." : "Export results"}
+          </Button>
+          {connection && <Badge variant="secondary">Connected {formatRelativeDay(connection.respondedAt ?? connection.createdAt)}</Badge>}
+        </div>
       </header>
+      {exportError && <p role="alert" className="mt-3 rounded-md bg-critical-soft px-3 py-2 text-sm text-critical">{exportError}</p>}
 
       <Tabs value={tab} onValueChange={setTab} className="mt-5">
         <TabsList>
@@ -307,6 +333,7 @@ function SummaryCard({
   const { data: versions, mutate: refreshVersions } = useSummaryVersions(patientId, summary.id);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState({
     whatWeSee: summary.body?.whatWeSee ?? "",
@@ -345,6 +372,18 @@ function SummaryCard({
       setError(caught instanceof Error ? caught.message : "Could not approve");
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function exportPdf() {
+    setExportingPdf(true);
+    setError(null);
+    try {
+      await exportSummaryPdf(patientId, summary.id);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not export");
+    } finally {
+      setExportingPdf(false);
     }
   }
 
@@ -394,6 +433,11 @@ function SummaryCard({
 
       {!editing && (
         <div className="mt-4 flex flex-wrap gap-2">
+          {approved && (
+            <Button variant="secondary" onClick={exportPdf} disabled={busy || exportingPdf} className="gap-2">
+              <Download className="size-4" /> {exportingPdf ? "Exporting..." : "Export PDF"}
+            </Button>
+          )}
           {!approved && <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>}
           {!approved && (
             <Button onClick={send} disabled={busy} className="gap-2">
@@ -529,6 +573,7 @@ const ACTION_LABELS: Record<string, string> = {
   viewed_record: "Opened the record",
   edited_summary: "Edited a summary",
   approved_summary: "Approved a summary for the patient",
+  exported: "Exported patient data",
   messaged_patient: "Sent a message",
   uploaded_file: "Uploaded a file",
   invited_patient: "Invited the patient",

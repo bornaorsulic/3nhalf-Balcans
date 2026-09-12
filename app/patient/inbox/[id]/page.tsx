@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, CheckCircle2, Plus } from "lucide-react";
+import { Check, CheckCircle2, Download, Plus } from "lucide-react";
 import { PageHeader } from "@/components/patient/page-header";
 import { SourceList } from "@/components/patient/source-list";
 import { Card, LoadingCards, SectionTitle } from "@/components/patient/ui";
 import { SpeakButton } from "@/components/voice-controls";
+import { downloadFromApi } from "@/lib/download";
 import { getApi } from "@/lib/patient-api";
 import { useAppointmentQuestions, useSummaries } from "@/lib/patient-api/hooks";
 import { formatLongDate } from "@/lib/dates";
@@ -15,6 +16,9 @@ export default function SummaryPage() {
   const { id } = useParams<{ id: string }>();
   const { data: summaries, mutate } = useSummaries();
   const summary = summaries?.find((s) => s.id === id);
+  const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingResults, setExportingResults] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Opening an approved summary marks it as read (clears the Inbox badge).
   useEffect(() => {
@@ -45,6 +49,31 @@ export default function SummaryPage() {
   }
 
   const { body } = summary;
+  const day = new Date().toISOString().slice(0, 10);
+
+  async function exportSummaryPdf() {
+    setExportError(null);
+    setExportingPdf(true);
+    try {
+      await downloadFromApi(`/patients/me/summaries/${encodeURIComponent(summary.id)}/export.pdf`, `approved-summary-${day}.pdf`);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Could not export this summary");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
+  async function exportResultsCsv() {
+    setExportError(null);
+    setExportingResults(true);
+    try {
+      await downloadFromApi(`/patients/me/results/export?format=csv`, `recent-results-${day}.csv`);
+    } catch (error) {
+      setExportError(error instanceof Error ? error.message : "Could not export recent results");
+    } finally {
+      setExportingResults(false);
+    }
+  }
 
   return (
     <div className="pb-8">
@@ -61,6 +90,27 @@ export default function SummaryPage() {
             {summary.approvedAt && ` on ${formatLongDate(summary.approvedAt)}`}
           </p>
         </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={exportSummaryPdf}
+            disabled={exportingPdf || exportingResults}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-control bg-primary-soft px-3 text-xs font-semibold text-primary disabled:opacity-50"
+          >
+            <Download aria-hidden className="size-3.5" />
+            {exportingPdf ? "Exporting..." : "Export summary PDF"}
+          </button>
+          <button
+            type="button"
+            onClick={exportResultsCsv}
+            disabled={exportingPdf || exportingResults}
+            className="inline-flex min-h-9 items-center gap-1.5 rounded-control bg-card px-3 text-xs font-semibold text-ink ring-1 ring-line disabled:opacity-50"
+          >
+            <Download aria-hidden className="size-3.5" />
+            {exportingResults ? "Exporting..." : "Export recent results"}
+          </button>
+        </div>
+        {exportError && <p role="alert" className="mt-2 text-xs text-critical">{exportError}</p>}
 
         <SectionTitle>What we see</SectionTitle>
         <Card className="text-[15px] leading-relaxed text-ink-secondary">{body.whatWeSee}</Card>

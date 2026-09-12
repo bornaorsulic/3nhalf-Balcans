@@ -17,9 +17,11 @@ from __future__ import annotations
 import os
 import base64
 import binascii
+import json
 import re
 import sys
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -28,7 +30,7 @@ from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend import audit, care, retrieval, schedule, summaries as summary_edits, voice  # noqa: E402
+from backend import audit, care, exports, retrieval, schedule, summaries as summary_edits, voice  # noqa: E402
 from backend.health_agent import HealthAgent  # noqa: E402
 from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
@@ -264,6 +266,11 @@ def safe_filename(filename: str) -> str:
     stem = Path(filename or "upload").name
     stem = re.sub(r"[^A-Za-z0-9._ -]", "_", stem).strip(" .")
     return stem[:120] or "upload"
+
+
+def export_filename(prefix: str, extension: str) -> str:
+    day = datetime.now(timezone.utc).date().isoformat()
+    return f"{prefix}-{day}.{extension}"
 
 
 # ---------- Health & accounts ----------
@@ -515,6 +522,51 @@ def speak_summary(patient_id: str, summary_id: str, user: dict = Depends(current
         raise HTTPException(status_code=502, detail=str(error)) from error
     voice.store_speech(pid, cache_key, audio)
     return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.get(PREFIX + "/patients/{patient_id}/summaries/{summary_id}/export.pdf")
+def export_summary_pdf(patient_id: str, summary_id: str, user: dict = Depends(current_user)) -> Response:
+    pid = resolve_patient(patient_id, user)
+    context = retrieval.get_patient_context(pid)
+    summary = next((item for item in context.get("summaries", []) if item["id"] == summary_id), None)
+    if not summary or summary["status"] != "approved" or not summary.get("body"):
+        raise HTTPException(status_code=404, detail="That approved summary does not exist")
+
+    pdf = exports.render_approved_summary_pdf(context, summary)
+    audit.log("exported", actor=user, patient_id=pid, subject_id=summary_id, detail="approved summary pdf")
+    filename = export_filename("approved-summary", "pdf")
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get(PREFIX + "/patients/{patient_id}/results/export")
+def export_results(patient_id: str, format: str = "csv", user: dict = Depends(current_user)) -> Response:
+    pid = resolve_patient(patient_id, user)
+    context = retrieval.get_patient_context(pid)
+    normalized = (format or "csv").strip().lower()
+    if normalized == "json":
+        payload = exports.render_results_json(context)
+        filename = export_filename("recent-results", "json")
+        audit.log("exported", actor=user, patient_id=pid, detail="recent results json")
+        return Response(
+            content=json.dumps(payload),
+            media_type="application/json",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
+    if normalized != "csv":
+        raise HTTPException(status_code=400, detail="Export format must be csv or json")
+
+    csv_text = exports.render_results_csv(context)
+    filename = export_filename("recent-results", "csv")
+    audit.log("exported", actor=user, patient_id=pid, detail="recent results csv")
+    return Response(
+        content=csv_text,
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.post(PREFIX + "/clinician/chat")
