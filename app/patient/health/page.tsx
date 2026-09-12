@@ -131,6 +131,7 @@ function WearablesPanel() {
                 band={metric === "sleepHours" ? { low: 7, high: 9 } : undefined}
                 area={metric !== "sleepHours"}
                 markers={symptomDays}
+                ranges={[7, 14]}
               />
             </div>
             <p className="mt-2 text-sm text-ink-secondary">{WEARABLE_COPY[metric].explain}</p>

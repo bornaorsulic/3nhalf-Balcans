@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useId, useRef, useState, type KeyboardEvent, type PointerEvent, type WheelEvent } from "react";
+import { MIN_POINTS, lastDays, pan, zoom, type ChartWindow } from "./zoom";
 import { formatShortDate, parseDate } from "@/lib/dates";
 import { cx } from "../ui";
 
@@ -26,6 +27,8 @@ interface TrendChartProps {
    * the tired days and the short-sleep days line up, or they do not.
    */
   markers?: { date: string; label: string }[];
+  /** Day ranges offered as buttons, e.g. [7, 30]. Omit for a series too short to zoom. */
+  ranges?: number[];
 }
 
 const M = { top: 14, right: 44, bottom: 22, left: 36 };
@@ -62,14 +65,21 @@ const plainNumber = (v: number) => v.toLocaleString("en-GB", { maximumFractionDi
  * Hover/touch shows a crosshair readout; arrow keys do the same for keyboard users;
  * "Show values" opens a table so no value depends on hovering.
  */
-export function TrendChart({ label, points, format, tickFormat = plainNumber, band, height = 150, area = true, markers }: TrendChartProps) {
+export function TrendChart({ label, points: allPoints, format, tickFormat = plainNumber, band, height = 150, area = true, markers, ranges }: TrendChartProps) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
+  const [view, setView] = useState<ChartWindow | null>(null);
+  // Live pointers, so two fingers can be told apart from one.
+  const touches = useRef(new Map<number, number>());
+  const pinchStart = useRef<{ spread: number; window: ChartWindow | null } | null>(null);
+  const dragStart = useRef<{ x: number; window: ChartWindow | null } | null>(null);
   const tableId = useId();
 
-  if (points.length === 0) return null;
+  if (allPoints.length === 0) return null;
 
+  // Everything below draws the visible window; zooming just narrows it.
+  const points = view ? allPoints.slice(view.from, view.to + 1) : allPoints;
   const values = points.map((p) => p.value);
   const dataMin = Math.min(...values);
   const dataMax = Math.max(...values);
@@ -104,8 +114,70 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
     return best;
   }
 
+  /** Where a client x sits in the drawn area, 0 at the left edge and 1 at the right. */
+  function focusFor(clientX: number, rect: DOMRect) {
+    return Math.min(Math.max((clientX - rect.left - M.left) / Math.max(rect.width - M.left - M.right, 1), 0), 1);
+  }
+
   function onPointer(e: PointerEvent<SVGSVGElement>) {
-    setActive(nearestIndex(e.clientX, e.currentTarget.getBoundingClientRect()));
+    const rect = e.currentTarget.getBoundingClientRect();
+    touches.current.set(e.pointerId, e.clientX);
+
+    if (touches.current.size === 2) {
+      // Second finger down: remember the spread so the pinch is measured from here.
+      const [a, b] = [...touches.current.values()];
+      pinchStart.current = { spread: Math.abs(a - b), window: view };
+      dragStart.current = null;
+      setActive(null);
+      return;
+    }
+
+    dragStart.current = { x: e.clientX, window: view };
+    setActive(nearestIndex(e.clientX, rect));
+  }
+
+  function onPointerMove(e: PointerEvent<SVGSVGElement>) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    if (!touches.current.has(e.pointerId)) {
+      // Hover with a mouse: just read values, no gesture in progress.
+      if (e.pointerType === "mouse" && e.buttons === 0) setActive(nearestIndex(e.clientX, rect));
+      return;
+    }
+    touches.current.set(e.pointerId, e.clientX);
+
+    if (touches.current.size === 2 && pinchStart.current) {
+      const [a, b] = [...touches.current.values()];
+      const spread = Math.abs(a - b);
+      if (spread > 8 && pinchStart.current.spread > 8) {
+        // Fingers apart -> a smaller window. Anchor on the midpoint between them.
+        const factor = pinchStart.current.spread / spread;
+        setView(zoom(allPoints.length, pinchStart.current.window, factor, focusFor((a + b) / 2, rect)));
+      }
+      return;
+    }
+
+    if (dragStart.current && view) {
+      const moved = e.clientX - dragStart.current.x;
+      if (Math.abs(moved) > 6) {
+        setView(pan(allPoints.length, dragStart.current.window, -moved / Math.max(rect.width - M.left - M.right, 1)));
+        setActive(null);
+      }
+    } else {
+      setActive(nearestIndex(e.clientX, rect));
+    }
+  }
+
+  function onPointerUp(e: PointerEvent<SVGSVGElement>) {
+    touches.current.delete(e.pointerId);
+    if (touches.current.size < 2) pinchStart.current = null;
+    if (touches.current.size === 0) dragStart.current = null;
+  }
+
+  function onWheel(e: WheelEvent<SVGSVGElement>) {
+    // Trackpad pinch arrives as a wheel event with ctrlKey set.
+    if (!e.ctrlKey && Math.abs(e.deltaY) < 12) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    setView(zoom(allPoints.length, view, e.deltaY > 0 ? 1.25 : 0.8, focusFor(e.clientX, rect)));
   }
 
   function onKey(e: KeyboardEvent<HTMLDivElement>) {
@@ -115,19 +187,66 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
       setActive((i) => Math.min(Math.max((i ?? points.length - 1) + dir, 0), points.length - 1));
     } else if (e.key === "Escape") {
       setActive(null);
+      setView(null);
     }
   }
 
   const tooltipLeft = current ? Math.min(Math.max(x(current.date), 56), width - 56) : 0;
 
+  const dates = allPoints.map((point) => point.date);
+  const shownDays = points.length;
+  const firstShown = points[0].date;
+  const lastShown = points.at(-1)!.date;
+  const shownMarkers = markers?.filter((marker) => marker.date >= firstShown && marker.date <= lastShown);
+
   return (
     <div>
+      {ranges && allPoints.length > MIN_POINTS && (
+        <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
+          {/* Buttons as well as gestures: a range has to be reachable with a keyboard,
+              and pinching is awkward on a laptop. */}
+          {ranges.map((days) => {
+            const target = lastDays(dates, days);
+            const selected = (target?.from ?? 0) === (view?.from ?? 0) && (target?.to ?? allPoints.length - 1) === (view?.to ?? allPoints.length - 1);
+            return (
+              <button
+                key={days}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => { setView(target); setActive(null); }}
+                className={cx(
+                  "min-h-6 rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
+                  selected ? "bg-primary text-on-primary" : "bg-surface-muted text-ink-secondary hover:bg-surface-muted/70",
+                )}
+              >
+                {days}d
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            aria-pressed={view === null}
+            onClick={() => { setView(null); setActive(null); }}
+            className={cx(
+              "min-h-6 rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
+              view === null ? "bg-primary text-on-primary" : "bg-surface-muted text-ink-secondary hover:bg-surface-muted/70",
+            )}
+          >
+            All
+          </button>
+          {view && (
+            <span className="text-[11px] text-ink-muted">
+              {shownDays} of {allPoints.length} days · pinch or scroll to zoom
+            </span>
+          )}
+        </div>
+      )}
       <div
         ref={ref}
         className="relative outline-none focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-primary"
         tabIndex={0}
         role="img"
-        aria-label={`${label}: ${format(points[0].value)} on ${formatShortDate(points[0].date)}, ${format(last.value)} on ${formatShortDate(last.date)}.${markers?.length ? ` ${markers.length} days with symptoms logged.` : ""} Use arrow keys to read values.`}
+        aria-label={`${label}: ${format(points[0].value)} on ${formatShortDate(points[0].date)}, ${format(last.value)} on ${formatShortDate(last.date)}.${shownMarkers?.length ? ` ${shownMarkers.length} days with symptoms logged.` : ""} Use arrow keys to read values.`}
         onKeyDown={onKey}
         onFocus={() => setActive((i) => i ?? points.length - 1)}
         onBlur={() => setActive(null)}
@@ -137,9 +256,12 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
             width={width}
             height={height}
             className="block touch-pan-y select-none"
-            onPointerMove={onPointer}
             onPointerDown={onPointer}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
             onPointerLeave={() => setActive(null)}
+            onWheel={onWheel}
           >
             {band && (
               <rect
@@ -189,7 +311,7 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
                 strokeWidth={2}
               />
             ))}
-            {markers?.map((marker) => (
+            {shownMarkers?.map((marker) => (
               <rect
                 key={marker.date}
                 x={x(marker.date) - 1}
@@ -217,9 +339,9 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
           >
             <p className="text-sm font-semibold text-surface">{format(current.value)}</p>
             <p className="text-[10px] text-surface/80">{formatShortDate(current.date)}</p>
-            {markers?.find((marker) => marker.date === current.date) && (
+            {shownMarkers?.find((marker) => marker.date === current.date) && (
               <p className="mt-0.5 text-[10px] font-medium text-surface">
-                {markers.find((marker) => marker.date === current.date)!.label}
+                {shownMarkers.find((marker) => marker.date === current.date)!.label}
               </p>
             )}
           </div>
