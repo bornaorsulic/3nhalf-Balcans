@@ -201,13 +201,91 @@ cd /opt/longevity/app/deploy && docker compose up -d --force-recreate backend
 
 Open the URL and sign in.
 
-## Redeploying
+## Updating a running deployment
+
+Everything lives in `/opt/longevity/app` on the VM, which is a normal clone of this
+repo. Deploying is `git pull` plus a rebuild — there is no registry and no pipeline.
 
 ```bash
-cd /opt/longevity/app && git pull && cd deploy && docker compose up -d --build
+ssh -A ubuntu@<vm-ip> 'cd /opt/longevity/app && git pull && cd deploy && docker compose up -d --build'
 ```
 
-The database is untouched by this; only re-run `./seed.sh` when the schema changed.
+The `-A` matters: the VM has no credentials of its own and clones through your forwarded
+SSH agent. If `git pull` says *"Please make sure you have the correct access rights"*, you
+connected without it. For pulls that work when nobody is logged in, add a read-only
+**deploy key** to the repo instead.
+
+Compose only recreates what changed, so this is safe to run repeatedly. Roughly 30 s when
+just the backend moved, 3–5 minutes when the frontend did (it reinstalls npm
+dependencies and rebuilds).
+
+### Which command for which change
+
+| You changed | What to run |
+|---|---|
+| Python in `backend/` | `docker compose up -d --build backend` |
+| Anything under `app/`, `components/`, `lib/` | `docker compose up -d --build frontend` |
+| `deploy/.env` (database URL, public URL) | `docker compose up -d --force-recreate backend` — no rebuild needed |
+| `deploy/Caddyfile` | `docker compose restart proxy` |
+| A database table in `scripts/setup_database.py` | `docker compose run --rm backend python scripts/setup_database.py` — it adds new tables and columns and leaves existing data alone |
+| The demo patient in `lib/demo/` | `npm run export:demo` **on your machine**, commit `data/patient_demo.json`, pull, then `docker compose run --rm backend python scripts/ingest_patient.py` |
+
+Nothing here touches the database unless you run a script that does. A rebuild never
+loses data.
+
+### Refreshing the demo
+
+Demo dates are relative to the day `npm run export:demo` ran, so after a few weeks Sofia's
+"last blood test" drifts into the past. To reset the whole story to today:
+
+```bash
+# on your machine
+npm run export:demo && git commit -am "Refresh demo dates" && git push
+
+# on the VM
+cd /opt/longevity/app && git pull && cd deploy
+docker compose run --rm backend python scripts/ingest_patient.py
+docker compose run --rm backend python scripts/seed_accounts.py
+```
+
+`ingest_patient.py` replaces that patient's rows rather than adding to them, and
+`seed_accounts.py` regenerates the doctors' bookable times from their weekly templates.
+Neither deletes accounts or messages.
+
+### Checking on it
+
+```bash
+docker compose ps                      # what is running
+docker compose logs -f backend         # or frontend, proxy
+docker compose logs --since 10m        # everything, recent
+sudo journalctl -u nebius-tunnel-agent -n 50 --no-pager   # the public URL lives here
+docker compose run --rm backend python scripts/check_database.py   # table row counts
+```
+
+The tunnel agent runs under systemd, not Compose, so it survives `docker compose down`
+and restarts with the VM. If the public URL 502s, check the agent first, then `proxy`.
+
+### Rolling back
+
+```bash
+cd /opt/longevity/app && git log --oneline -5
+git checkout <good-commit> && cd deploy && docker compose up -d --build
+```
+
+Then `git checkout main` once the fix is in. A rollback of the code does not roll back
+the database, so a commit that changed the schema needs thought before you go backwards.
+
+### Stopping it between demos
+
+```bash
+# from the Nebius console, or:
+nebius compute instance stop --id <instance-id>
+```
+
+The VM bills by the hour while it runs; the disk, the database and the tunnel survive
+being stopped. On the next start, Compose and the tunnel agent come back on their own
+(`restart: unless-stopped` and a systemd unit), so the public URL keeps working without
+you touching anything.
 
 ## Instead of a tunnel: your own domain
 
