@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -92,6 +93,79 @@ def ensure_original_version(summary_id: str) -> None:
             ),
         )
         connection.commit()
+
+
+def create_draft(
+    patient_id: str,
+    *,
+    title: str,
+    what_we_see: str,
+    what_it_means: str,
+    next_steps: list[str],
+    questions_for_visit: list[str],
+    sources: list[dict],
+) -> str:
+    """Write a new patient-facing summary as version 1, status `in_review`.
+
+    The patient sees nothing of it until a clinician approves it: the API only
+    returns a summary body once `status = 'approved'` (backend/models.py).
+    """
+    summary_id = f"sum-{uuid.uuid4().hex[:10]}"
+    created = _now()
+
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute(
+            """
+            INSERT INTO summaries
+                (id, patient_id, title, status, created_at, what_we_see, what_it_means, next_steps, questions_for_visit)
+            VALUES (%s, %s, %s, 'in_review', %s, %s, %s, %s, %s);
+            """,
+            (
+                summary_id,
+                patient_id,
+                title,
+                created,
+                what_we_see,
+                what_it_means,
+                json.dumps(next_steps),
+                json.dumps(questions_for_visit),
+            ),
+        )
+        for position, item in enumerate(sources):
+            cursor.execute(
+                """
+                INSERT INTO summary_sources (summary_id, position, source_id, kind, title, detail, url)
+                VALUES (%s, %s, %s, %s, %s, %s, %s);
+                """,
+                (
+                    summary_id,
+                    position,
+                    item.get("id"),
+                    item.get("kind") or "patient_data",
+                    item.get("title") or "",
+                    item.get("detail"),
+                    item.get("url"),
+                ),
+            )
+        # Version 1 is what the agent wrote, so a later clinician edit is visibly a change.
+        cursor.execute(
+            """
+            INSERT INTO summary_versions
+                (summary_id, version, source, what_we_see, what_it_means, next_steps, questions_for_visit, created_at)
+            VALUES (%s, 1, 'ai', %s, %s, %s, %s, %s);
+            """,
+            (
+                summary_id,
+                what_we_see,
+                what_it_means,
+                json.dumps(next_steps),
+                json.dumps(questions_for_visit),
+                created,
+            ),
+        )
+        connection.commit()
+
+    return summary_id
 
 
 def edit(

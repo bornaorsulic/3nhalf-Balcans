@@ -39,13 +39,19 @@ already uses, so keys never reach the browser.
 | `backend/amass.py` | create | Amass search; falls back to the `research_sources` table |
 | `backend/prompts.py` | create | System prompt and context builder |
 | `backend/health_agent.py` | create | Orchestrator: context → evidence → prompt → validate → return |
-| [`backend/agent.py`](../backend/agent.py) | keep | Scripted fallback when the model fails |
-| [`backend/api.py`](../backend/api.py) | extend | Add `POST /api/v1/clinician/chat` |
-| `lib/care-api.ts` | extend | Client hook for the clinician chat endpoint |
+| [`backend/agent.py`](../backend/agent.py) | keep | Scripted fallback when the model fails (patient mode) |
+| [`backend/clinician_agent.py`](../backend/clinician_agent.py) | replace `answer()` | Scripted clinician answer; already returns the shape below |
+| [`backend/api.py`](../backend/api.py) | done | `POST /api/v1/clinician/chat` exists, with the connection check |
+| `lib/care-api.ts` | done | `askAgent()` / `createSummary()` |
+| `components/clinician/agent-chat.tsx` | done | The Ask tab that renders this shape |
 
-## First endpoint
+## The endpoint
 
-`POST /api/v1/clinician/chat` (FastAPI, alongside the existing routes)
+`POST /api/v1/clinician/chat` **already exists** and is wired to the Ask tab. It is
+gated on `current_clinician` plus an accepted `care_connections` row, and it logs an
+`asked_agent` entry to the audit trail. What is scripted is only the composer:
+`backend/clinician_agent.py:answer()`. Replace that, keep the response shape, and the
+UI needs no change.
 
 **Input**
 
@@ -82,7 +88,15 @@ clinician UI renders it without changes:
     }
   ],
   "confidence": "moderate",
-  "safetyNote": "Decision support only. Clinician review required."
+  "safetyNote": "Decision support only. Clinician review required.",
+  "draftSummary": {
+    "title": "Ahead of your appointment",
+    "whatWeSee": "Plain-language paragraph for the patient…",
+    "whatItMeans": "…",
+    "nextSteps": ["Repeat the blood test with HbA1c so we can see the trend clearly."],
+    "questionsForVisit": ["Should I repeat my blood sugar test, and add HbA1c?"],
+    "sources": [{ "id": "res-dpp-2002", "kind": "research", "title": "…", "url": "https://doi.org/…" }]
+  }
 }
 ```
 
@@ -94,6 +108,10 @@ Constraints:
 - Every `id` is required — the UI uses them as React keys.
 - `riskSignals` entries are `RiskPreventionItem`; note the field is **`explanation`**,
   not `reason`.
+- `draftSummary` is the patient-facing version, in plain language, or `null` when the
+  record holds nothing to summarise. The Ask tab saves it with
+  `POST /api/v1/patients/{id}/summaries`, which writes `status = 'in_review'` —
+  so a model-written summary still has to be approved before a patient sees it.
 
 ## Agent flow
 
@@ -166,11 +184,12 @@ curl -s localhost:8000/api/v1/clinician/chat \
 Sofia's real numbers should appear in the answer: fasting glucose 108 mg/dL, sleep
 7.3 → 5.9 h, HRV −16 %, hs-CRP 3.1 mg/L.
 
-Then wire the UI: the clinician record
+The UI is built: the clinician record
 ([`components/clinician/patient-record.tsx`](../components/clinician/patient-record.tsx))
-has tabs for Overview, Summaries, Messages and Activity. The agent belongs in a new
-**Ask** tab that posts the question and renders `answer`, `riskSignals` and `citations`,
-with a loading state while the model thinks.
+has an **Ask** tab ([`components/clinician/agent-chat.tsx`](../components/clinician/agent-chat.tsx))
+that renders `answer`, `riskSignals`, `citations` and `followUpQuestions`, and offers
+"Draft patient summary", "Message the patient" and "Copy". Keep the response shape and
+it keeps working.
 
 ## Patient-facing summary
 

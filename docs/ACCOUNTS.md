@@ -146,6 +146,8 @@ GET    /api/v1/clinician/availability-rules  POST same path
 DELETE /api/v1/clinician/availability-rules/{id}
 GET    /api/v1/appointments                  POST /appointments
 POST   /api/v1/appointments/{id}/cancel | /{id}/reschedule
+POST   /api/v1/clinician/chat                                    (ask the agent about a patient)
+POST   /api/v1/patients/{id}/summaries                           (save a draft, clinician)
 PUT    /api/v1/patients/{id}/summaries/{summaryId}               (edit, clinician)
 GET    /api/v1/patients/{id}/summaries/{summaryId}/versions
 POST   /api/v1/patients/{id}/summaries/{summaryId}/approve

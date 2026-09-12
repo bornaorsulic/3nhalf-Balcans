@@ -47,13 +47,17 @@ patient data  /patients/{id} + /labs /wearables /genetics /diary /chat /summarie
 care network  /doctors /connections /connections/{id}/respond|end|messages|read
 calendar      /clinicians/{id}/slots  /clinician/slots  /clinician/availability-rules
               /appointments  /appointments/{id}/cancel|reschedule
-summaries     PUT /patients/{id}/summaries/{summaryId}   (clinician edit, version trail)
+agent         POST /patients/{id}/chat                   (patient asks)
+              POST /clinician/chat                       (doctor asks about one patient)
+summaries     POST /patients/{id}/summaries              (save an agent draft, in_review)
+              PUT /patients/{id}/summaries/{summaryId}   (clinician edit, version trail)
               POST .../approve                           (clinician-in-the-loop)
 research      /research?q=                               (Amass stand-in)
 ```
 
-Shapes are documented in `docs/PATIENT_API.md` and `docs/ACCOUNTS.md`. The clinician
-agent endpoint is still to be built — see `docs/HEALTH_AGENT.md`.
+Shapes are documented in `docs/PATIENT_API.md` and `docs/ACCOUNTS.md`; the clinician
+answer is `ClinicianAgentReply` in `lib/types.ts`. Both agent routes are scripted
+stand-ins today — replacing them with Nebius is `docs/HEALTH_AGENT.md`.
 
 ## Person 1 — AI / backend
 

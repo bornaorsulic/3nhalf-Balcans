@@ -8,6 +8,7 @@
 
 import useSWR from "swr";
 import { apiJson } from "@/lib/session";
+import type { ClinicianAgentReply, SummaryDraft } from "@/lib/types";
 
 // ---------- Types (mirror the API responses) ----------
 
@@ -206,6 +207,20 @@ export const editSummary = (
   method: "PUT",
   body: JSON.stringify(body),
 });
+
+/** Ask the Health Agent about a patient you are connected to (backend/clinician_agent.py). */
+export const askAgent = (patientId: string, question: string) =>
+  apiJson<ClinicianAgentReply>("/clinician/chat", {
+    method: "POST",
+    body: JSON.stringify({ patientId, question }),
+  });
+
+/** Save a draft summary. It stays in_review until a clinician approves it. */
+export const createSummary = (patientId: string, draft: SummaryDraft) =>
+  apiJson<{ id: string; status: string }>(`/patients/${patientId}/summaries`, {
+    method: "POST",
+    body: JSON.stringify(draft),
+  });
 
 export const approveSummary = (patientId: string, summaryId: string) =>
   apiJson<unknown>(`/patients/${patientId}/summaries/${summaryId}/approve`, { method: "POST" });

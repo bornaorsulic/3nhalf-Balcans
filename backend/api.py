@@ -26,6 +26,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend import audit, care, retrieval, schedule, summaries as summary_edits  # noqa: E402
 from backend.agent import answer  # noqa: E402
+from backend.clinician_agent import answer as clinician_answer  # noqa: E402
 from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
     RegistrationError,
@@ -101,6 +102,20 @@ class ChatTurn(BaseModel):
 
 class ChatRequest(BaseModel):
     messages: list[ChatTurn]
+
+
+class ClinicianChatRequest(BaseModel):
+    patientId: str
+    question: str
+
+
+class SummaryDraftBody(BaseModel):
+    title: str
+    whatWeSee: str
+    whatItMeans: str
+    nextSteps: list[str] = []
+    questionsForVisit: list[str] = []
+    sources: list[dict] = []
 
 
 class QuestionBody(BaseModel):
@@ -375,6 +390,47 @@ def chat(patient_id: str, request: ChatRequest, user: dict = Depends(current_pat
 
     question = next((m.content for m in reversed(request.messages) if m.role == "user"), "")
     return answer(question, context)
+
+
+@app.post(PREFIX + "/clinician/chat")
+def clinician_chat(body: ClinicianChatRequest, user: dict = Depends(current_clinician)) -> dict:
+    """The doctor asks about a patient they are connected to.
+
+    Deliberately not the patient chat route: that one is gated on `current_patient`,
+    and the answer here is clinical rather than plain-language. The connection check
+    is the same one every other clinician route uses.
+    """
+    pid = resolve_patient(body.patientId, user)
+    context = retrieval.get_patient_context(pid)
+    if not context["patient"]:
+        raise HTTPException(status_code=404, detail=f"No patient '{pid}'")
+    context["research"] = retrieval.get_research()
+
+    reply = clinician_answer(body.question, context)
+    # The patient can see that their record was queried, and what was asked.
+    audit.log("asked_agent", actor=user, patient_id=pid, detail=body.question[:200])
+    return reply
+
+
+@app.post(PREFIX + "/patients/{patient_id}/summaries", status_code=201)
+def create_summary(
+    patient_id: str,
+    body: SummaryDraftBody,
+    user: dict = Depends(current_clinician),
+) -> dict:
+    """Save a draft summary. It reaches the patient only once it is approved."""
+    pid = resolve_patient(patient_id, user)
+    summary_id = summary_edits.create_draft(
+        pid,
+        title=body.title,
+        what_we_see=body.whatWeSee,
+        what_it_means=body.whatItMeans,
+        next_steps=body.nextSteps,
+        questions_for_visit=body.questionsForVisit,
+        sources=body.sources,
+    )
+    audit.log("drafted_summary", actor=user, patient_id=pid, subject_id=summary_id, detail=body.title)
+    return {"id": summary_id, "status": "in_review"}
 
 
 @app.get(PREFIX + "/patients/{patient_id}/audit")

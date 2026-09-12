@@ -6,8 +6,9 @@ hackathon: an evidence-grounded Health Agent with two views of the same patient.
 - `/patient` — patient app (phone-sized): daily check-in, Health Agent chat with
   sources, health data in plain language, doctors, messages, appointments, and an
   inbox of clinician-approved summaries.
-- `/clinician` — clinician desktop: patient roster, requests, patient record with
-  summary editing, messaging, and a calendar driven by a weekly template.
+- `/clinician` — clinician desktop: patient roster, requests, patient record with an
+  **Ask** tab for the Health Agent, summary editing, messaging, and a calendar driven
+  by a weekly template.
 - `/login`, `/register` — accounts for patients and doctors.
 
 ## Setup
@@ -142,6 +143,7 @@ docs/                 API, database, accounts and Health Agent documentation
 | Calendar | Weekly template generating eight weeks; week grid with month view; patient books from a month calendar |
 | Messaging | Doctor ↔ patient threads with unread counts |
 | Summaries | Clinician edits with a version trail; only approved text reaches the patient |
+| Health Agent | Both views can ask: the patient in plain language, the doctor with risk signals, citations and a one-click patient draft |
 | Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape — see [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
 | Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs |
 

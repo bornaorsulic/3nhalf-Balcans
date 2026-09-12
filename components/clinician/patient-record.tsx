@@ -10,10 +10,12 @@ import {
   History,
   MessageSquareText,
   Send,
+  Sparkles,
   ShieldCheck,
   Smartphone,
 } from "lucide-react";
 
+import { AgentChat } from "@/components/clinician/agent-chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -80,6 +82,9 @@ export function PatientRecord({ patientId }: { patientId: string }) {
       <Tabs value={tab} onValueChange={setTab} className="mt-5">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="ask">
+            <Sparkles className="size-3.5" /> Ask
+          </TabsTrigger>
           <TabsTrigger value="summaries">Summaries</TabsTrigger>
           <TabsTrigger value="messages">
             Messages{connection && connection.unreadMessages > 0 ? ` (${connection.unreadMessages})` : ""}
@@ -89,6 +94,13 @@ export function PatientRecord({ patientId }: { patientId: string }) {
 
         <TabsContent value="overview" className="mt-5">
           <Overview patientId={patientId} />
+        </TabsContent>
+        <TabsContent value="ask" className="mt-5">
+          <AgentChat
+            patientId={patientId}
+            connectionId={connection?.id ?? null}
+            onOpenSummaries={() => setTab("summaries")}
+          />
         </TabsContent>
         <TabsContent value="summaries" className="mt-5">
           <Summaries patientId={patientId} />

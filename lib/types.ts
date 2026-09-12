@@ -1,13 +1,15 @@
 /*
  * Clinician-facing shapes.
  *
- * `SourceLabel` is used today by the source chips. The rest is the contract the
- * Health Agent's clinician answer has to match when it is built — the response
- * example in docs/HEALTH_AGENT.md refers to exactly these names, so keep the two
- * in sync.
+ * `ClinicianAgentReply` is what POST /api/v1/clinician/chat returns — the doctor's
+ * Ask tab renders exactly this. The response example in docs/HEALTH_AGENT.md refers
+ * to these names, so keep the two in sync when the Nebius call replaces the
+ * scripted answer in backend/clinician_agent.py.
  *
  * Patient-facing shapes live in lib/patient-api/types.ts.
  */
+
+import type { Source } from "@/lib/patient-api/types";
 
 /** Where a statement comes from. Rendered as a chip by components/source-badge.tsx. */
 export type SourceLabel =
@@ -48,4 +50,30 @@ export type ClinicianSummary = {
   sourceLabels: SourceLabel[];
   suggestedQuestions: string[];
   safetyNote: string;
+};
+
+/** The plain-language summary the agent drafts for the patient, ready to save as in_review. */
+export type SummaryDraft = {
+  title: string;
+  whatWeSee: string;
+  whatItMeans: string;
+  nextSteps: string[];
+  questionsForVisit: string[];
+  sources: Source[];
+};
+
+/** One answer to one clinician question about one patient. */
+export type ClinicianAgentReply = {
+  id: string;
+  patientId: string;
+  generatedAt: string;
+  /** Light markdown: paragraphs, "- " bullet lines, **bold**. */
+  answer: string;
+  riskSignals: RiskPreventionItem[];
+  followUpQuestions: string[];
+  citations: EvidenceCitation[];
+  confidence: "high" | "moderate" | "low";
+  safetyNote: string;
+  /** Null when the record holds nothing to summarise yet. */
+  draftSummary: SummaryDraft | null;
 };
