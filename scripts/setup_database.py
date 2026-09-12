@@ -416,6 +416,9 @@ ALTERS = [
     "ALTER TABLE files ADD COLUMN IF NOT EXISTS cache_key VARCHAR(255);",
     "ALTER TABLE files ADD COLUMN IF NOT EXISTS uploaded_by_role VARCHAR(20);",
     "ALTER TABLE files ADD COLUMN IF NOT EXISTS label TEXT;",
+    # Text pulled out of an uploaded PDF, so the Health Agent can read what a
+    # patient brought from another clinic instead of only knowing it exists.
+    "ALTER TABLE files ADD COLUMN IF NOT EXISTS extracted_text TEXT;",
     "ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;",
     "ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;",
 ]

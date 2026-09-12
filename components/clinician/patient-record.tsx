@@ -263,7 +263,7 @@ function Overview({ patientId }: { patientId: string }) {
         </Card>
 
         <Card title="Patient files" icon={<Upload className="size-4 text-primary" />}>
-          <PatientFiles patientId={patientId} />
+          <PatientFiles patientId={patientId} canImport />
         </Card>
       </div>
 

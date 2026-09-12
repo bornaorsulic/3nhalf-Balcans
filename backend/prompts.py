@@ -71,6 +71,12 @@ def patient_context(context: dict) -> dict:
             'labs': [{k: lab[k] for k in ('name', 'unit', 'status', 'referenceRange', 'history') if k in lab}
                      for lab in context.get('labs', [])[:30]],
             'genetics': context.get('genetics', [])[:15],
+            # Text from documents the patient or clinic uploaded. Treat as reported
+            # by the source, not as verified measurements: nothing here has been
+            # through the record's own validation.
+            'uploadedDocuments': [{'label': d.get('label') or d.get('filename'), 'date': d.get('date'),
+                                   'text': (d.get('text') or '')[:1500]}
+                                  for d in context.get('documents', [])[:4]],
             'diary': [{k: entry[k] for k in ('date', 'energy', 'sleepQuality', 'mood', 'symptoms', 'lifestyle', 'note') if k in entry}
                       for entry in context.get('diary', [])[:14]]}
 

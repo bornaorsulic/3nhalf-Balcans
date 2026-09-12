@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend import audit, care, exports, retrieval, schedule, summaries as summary_edits, voice  # noqa: E402
+from backend import audit, care, demo_reset, documents, exports, retrieval, schedule, summaries as summary_edits, voice  # noqa: E402
 from backend.health_agent import HealthAgent  # noqa: E402
 from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
@@ -212,6 +212,12 @@ class RuleBody(BaseModel):
     location: str = ""
 
 
+class ParsedValuesBody(BaseModel):
+    biomarkers: list[dict] = []
+    genetics: list[dict] = []
+    fileId: int | None = None
+
+
 class ReviewNoteBody(BaseModel):
     note: str
 
@@ -275,6 +281,26 @@ def safe_filename(filename: str) -> str:
 def export_filename(prefix: str, extension: str) -> str:
     day = datetime.now(timezone.utc).date().isoformat()
     return f"{prefix}-{day}.{extension}"
+
+
+# ---------- Demo ----------
+
+
+@app.post(PREFIX + "/demo/reset")
+def reset_demo() -> dict:
+    """Put the demo back to its seeded state.
+
+    Deliberately unauthenticated so anyone running the demo can recover it in one
+    tap — which also means anyone with the URL can wipe it. That is the trade the
+    team chose for a demo with invented data; it must never be enabled anywhere a
+    real record could exist. DEMO_RESET=0 turns it off.
+    """
+    if os.environ.get("DEMO_RESET", "1").lower() in ("0", "false", "no"):
+        raise HTTPException(status_code=404, detail="Not found")
+    try:
+        return demo_reset.reset()
+    except demo_reset.ResetError as error:
+        raise HTTPException(status_code=429 if "just ran" in str(error) else 500, detail=str(error)) from error
 
 
 # ---------- Health & accounts ----------
@@ -435,6 +461,9 @@ def upload_file(patient_id: str, body: FileUploadBody, user: dict = Depends(curr
     path = patient_dir / stored_name
     path.write_bytes(data)
 
+    # Read it once, here, so the agent can use it later without re-parsing.
+    text = documents.extract_text(data, body.fileType or "", original)
+
     item = retrieval.add_file(
         pid,
         filename=original,
@@ -442,6 +471,7 @@ def upload_file(patient_id: str, body: FileUploadBody, user: dict = Depends(curr
         file_path=str(path),
         uploaded_by_role=user["role"],
         label=body.label.strip(),
+        extracted_text=text,
     )
     if user["role"] == "clinician":
         audit.log("uploaded_file", actor=user, patient_id=pid, subject_id=item["id"], detail=original)
@@ -832,6 +862,74 @@ async def send_voice_message(connection_id: str, request: Request, user: dict = 
     if user["role"] == "clinician":
         audit.log("messaged_patient", actor=user, patient_id=connection["patient_id"], detail="Voice note")
     return message
+
+
+@app.get(PREFIX + "/patients/{patient_id}/files/{file_id}/download")
+def download_patient_file(patient_id: str, file_id: int, user: dict = Depends(current_user)) -> Response:
+    """Give a file back to whoever may see the record it belongs to."""
+    pid = resolve_patient(patient_id, user)
+    row = retrieval.get_file(pid, file_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="That file does not exist")
+
+    path = Path(row["file_path"])
+    # Never let a stored path escape the upload directory, whatever is in the row.
+    if not path.is_absolute():
+        path = (UPLOAD_DIR / path).resolve()
+    if UPLOAD_DIR not in path.parents or not path.is_file():
+        raise HTTPException(status_code=404, detail="That file is no longer stored")
+
+    audit.log("downloaded_file", actor=user, patient_id=pid, subject_id=str(file_id), detail=row["filename"])
+    return Response(
+        content=path.read_bytes(),
+        media_type=row.get("file_type") or "application/octet-stream",
+        headers={"Content-Disposition": f'attachment; filename="{safe_filename(row["filename"])}"'},
+    )
+
+
+@app.get(PREFIX + "/patients/{patient_id}/files/{file_id}/parse")
+def parse_patient_file(patient_id: str, file_id: int, user: dict = Depends(current_clinician)) -> dict:
+    """What a clinician could pull out of an uploaded document.
+
+    Reads only; nothing is written to the record until the clinician confirms it,
+    because lab layouts vary and a misparsed value is worse than no value.
+    """
+    pid = resolve_patient(patient_id, user)
+    row = retrieval.get_file(pid, file_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="That file does not exist")
+
+    text = row.get("extracted_text") or ""
+    return {
+        "fileId": file_id,
+        "filename": row["filename"],
+        "readable": bool(text),
+        "biomarkers": documents.parse_biomarkers(text),
+        "genetics": documents.parse_genetics(text),
+    }
+
+
+@app.post(PREFIX + "/patients/{patient_id}/files/{file_id}/apply")
+def apply_parsed_file(
+    patient_id: str,
+    file_id: int,
+    body: ParsedValuesBody,
+    user: dict = Depends(current_clinician),
+) -> dict:
+    """Save the values a clinician confirmed from a document.
+
+    The clinician sends back what they checked, not what the parser found, so an
+    edited or deleted row never reaches the record.
+    """
+    pid = resolve_patient(patient_id, user)
+    if not retrieval.get_file(pid, file_id):
+        raise HTTPException(status_code=404, detail="That file does not exist")
+
+    labs = retrieval.save_parsed_biomarkers(pid, body.biomarkers, source_file_id=file_id)
+    genes = retrieval.save_parsed_genetics(pid, body.genetics)
+    audit.log("imported_results", actor=user, patient_id=pid, subject_id=str(file_id),
+              detail=f"{labs} biomarkers, {genes} gene findings")
+    return {"biomarkers": labs, "genetics": genes}
 
 
 @app.get(PREFIX + "/files/{file_id}")

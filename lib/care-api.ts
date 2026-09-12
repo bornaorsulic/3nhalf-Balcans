@@ -286,6 +286,32 @@ function readAsBase64(file: File) {
   });
 }
 
+/** What a clinician could pull out of an uploaded document. Reads only. */
+export interface ParsedDocument {
+  fileId: number;
+  filename: string;
+  readable: boolean;
+  biomarkers: { name: string; value: number; unit: string; referenceLow: number | null; referenceHigh: number | null }[];
+  genetics: { gene: string; variant: string; genotype: string }[];
+}
+
+export const parsePatientFile = (patientId: string, fileId: string | number) =>
+  apiJson<ParsedDocument>(`/patients/${patientId}/files/${fileId}/parse`);
+
+/** Save what the clinician confirmed — not what the parser found. */
+export const applyParsedFile = (
+  patientId: string,
+  fileId: string | number,
+  values: { biomarkers: ParsedDocument["biomarkers"]; genetics: ParsedDocument["genetics"] },
+) =>
+  apiJson<{ biomarkers: number; genetics: number }>(`/patients/${patientId}/files/${fileId}/apply`, {
+    method: "POST",
+    body: JSON.stringify(values),
+  });
+
+/** Put the demo back to its seeded state. Unauthenticated by design. */
+export const resetDemo = () => apiJson<{ status: string; filesRemoved: number }>("/demo/reset", { method: "POST" });
+
 export async function uploadPatientFile(patientId: string, file: File, label = "") {
   return apiJson<PatientFile>(`/patients/${patientId}/files`, {
     method: "POST",

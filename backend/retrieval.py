@@ -13,6 +13,7 @@ Run it directly to print the demo patient:
 from __future__ import annotations
 
 import json
+import re
 import sys
 import uuid
 from datetime import datetime, timezone
@@ -303,6 +304,15 @@ def get_files(patient_id: str) -> list[dict]:
     return [models.patient_file(row) for row in rows]
 
 
+def get_file(patient_id: str, file_id: int) -> dict | None:
+    """One uploaded file belonging to this patient, row and all."""
+    _ensure_file_schema()
+    return _one(
+        "SELECT * FROM files WHERE id = %s AND patient_id = %s AND COALESCE(purpose, 'upload') = 'upload';",
+        (file_id, patient_id),
+    )
+
+
 def add_file(
     patient_id: str,
     *,
@@ -311,16 +321,18 @@ def add_file(
     file_path: str,
     uploaded_by_role: str,
     label: str = "",
+    extracted_text: str = "",
 ) -> dict:
     _ensure_file_schema()
     with connect() as connection, connection.cursor(row_factory=dict_row) as cursor:
         cursor.execute(
             """
-            INSERT INTO files (patient_id, filename, file_type, file_path, uploaded_by_role, label, purpose, created_at)
-            VALUES (%s, %s, %s, %s, %s, %s, 'upload', %s)
+            INSERT INTO files
+                (patient_id, filename, file_type, file_path, uploaded_by_role, label, purpose, created_at, extracted_text)
+            VALUES (%s, %s, %s, %s, %s, %s, 'upload', %s, %s)
             RETURNING *;
             """,
-            (patient_id, filename, file_type, file_path, uploaded_by_role, label, _now()),
+            (patient_id, filename, file_type, file_path, uploaded_by_role, label, _now(), extracted_text or None),
         )
         row = cursor.fetchone()
         connection.commit()
@@ -351,6 +363,111 @@ def search_research(query: str, limit: int = 5) -> list[dict]:
 # ---------- Agent context ----------
 
 
+def get_document_texts(patient_id: str, limit: int = 6) -> list[dict]:
+    """Uploaded documents the agent can actually read.
+
+    Text extracted at upload time, trimmed: a long report would otherwise crowd out
+    the patient's own measurements in the prompt.
+    """
+    _ensure_file_schema()
+    rows = _query(
+        """
+        SELECT filename, label, created_at, extracted_text FROM files
+        WHERE patient_id = %s AND COALESCE(purpose, 'upload') = 'upload'
+          AND extracted_text IS NOT NULL AND extracted_text <> ''
+        ORDER BY created_at DESC
+        LIMIT %s;
+        """,
+        (patient_id, limit),
+    )
+    return [
+        {
+            "filename": row["filename"],
+            "label": row.get("label") or "",
+            "date": models.iso_day(row.get("created_at")),
+            "text": (row["extracted_text"] or "")[:4000],
+        }
+        for row in rows
+    ]
+
+
+def save_parsed_biomarkers(patient_id: str, items: list[dict], *, source_file_id: int | None = None) -> int:
+    """Write clinician-confirmed values from a document into the record.
+
+    One panel per biomarker plus one observation, exactly like an ingest, so the
+    values show up in the patient's charts and reach the agent as real data.
+    """
+    saved = 0
+    today = datetime.now(timezone.utc).date()
+    with connect() as connection, connection.cursor() as cursor:
+        for item in items:
+            name = (item.get("name") or "").strip()
+            if not name or item.get("value") is None:
+                continue
+            # Reuse the patient's existing panel for this biomarker, so a new result
+            # extends its history instead of creating a second chart beside it.
+            existing = _one(
+                "SELECT id FROM lab_panels WHERE patient_id = %s AND lower(name) = lower(%s) LIMIT 1;",
+                (patient_id, name),
+            )
+            panel_id = existing["id"] if existing else f"lab-{re.sub(r'[^a-z0-9]+', '-', name.lower()).strip('-')[:40]}"
+            low, high = item.get("referenceLow"), item.get("referenceHigh")
+            value = float(item["value"])
+            status = "normal"
+            if low is not None and value < low:
+                status = "low"
+            elif high is not None and value > high:
+                status = "high"
+
+            cursor.execute(
+                """
+                INSERT INTO lab_panels (id, patient_id, name, unit, reference_low, reference_high, status, category, plain_language)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, 'metabolic', %s)
+                ON CONFLICT (id) DO UPDATE SET
+                    unit = EXCLUDED.unit, reference_low = EXCLUDED.reference_low,
+                    reference_high = EXCLUDED.reference_high, status = EXCLUDED.status;
+                """,
+                (panel_id, patient_id, name, item.get("unit") or "", low, high, status,
+                 f"Read from an uploaded document and confirmed by a clinician."),
+            )
+            cursor.execute(
+                """
+                INSERT INTO labs (patient_id, panel_id, biomarker, value, unit, date)
+                VALUES (%s, %s, %s, %s, %s, %s);
+                """,
+                (patient_id, panel_id, name, value, item.get("unit") or "", item.get("date") or today),
+            )
+            saved += 1
+        connection.commit()
+    return saved
+
+
+def save_parsed_genetics(patient_id: str, items: list[dict]) -> int:
+    """Same, for gene findings."""
+    saved = 0
+    with connect() as connection, connection.cursor() as cursor:
+        for item in items:
+            gene = (item.get("gene") or "").strip().upper()
+            if not gene:
+                continue
+            cursor.execute(
+                """
+                INSERT INTO genetic_tests (finding_id, patient_id, gene, variant, genotype, finding, effect, plain_language, test_name)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (finding_id) DO UPDATE SET
+                    variant = EXCLUDED.variant, genotype = EXCLUDED.genotype;
+                """,
+                (f"gen-{patient_id}-{gene.lower()}", patient_id, gene, item.get("variant") or "",
+                 item.get("genotype") or "", item.get("finding") or f"{gene} {item.get('genotype') or ''}".strip(),
+                 item.get("effect") or "typical",
+                 "Read from an uploaded document and confirmed by a clinician.",
+                 "Uploaded genetic report"),
+            )
+            saved += 1
+        connection.commit()
+    return saved
+
+
 def get_patient_context(patient_id: str = DEMO_PATIENT_ID) -> dict:
     """Everything the Health Agent needs about one patient, in API shapes."""
     return {
@@ -361,6 +478,7 @@ def get_patient_context(patient_id: str = DEMO_PATIENT_ID) -> dict:
         "diary": get_diary(patient_id),
         "summaries": get_summaries(patient_id),
         "questions": get_questions(patient_id),
+        "documents": get_document_texts(patient_id),
     }
 
 

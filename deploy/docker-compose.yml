@@ -34,6 +34,9 @@ services:
       # Managed PostgreSQL presents a certificate from a private Nebius CA, so
       # sslmode=verify-full needs the CA on disk. Not a secret; see docs/DEPLOY.md.
       - ${CA_CERT_PATH:-/opt/longevity/certs/ca.pem}:/etc/ssl/nebius/ca.pem:ro
+      # Uploaded documents are written to disk, so they must outlive the container:
+      # without this, every `docker compose up --build` silently loses them.
+      - uploads:/app/.uploads
     expose:
       - "8000"
 
@@ -48,3 +51,6 @@ services:
     depends_on:
       - frontend
       - backend
+
+volumes:
+  uploads:

@@ -6,3 +6,5 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 httpx>=0.28,<0.29
 python-dotenv>=1.0,<2
+# Reading text out of uploaded PDFs (backend/documents.py).
+pypdf>=5,<7

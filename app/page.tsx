@@ -1,6 +1,7 @@
  "use client";
 
 import Link from "@/components/plain-link";
+import { DemoResetButton } from "@/components/demo-reset-button";
 import {
   Activity,
   MessageSquareText,
@@ -97,6 +98,10 @@ export default function Home() {
           <p className="mt-3 text-xs text-muted-foreground">
             Doctor accounts need an invite code: <code className="font-mono">LONGEVITY-2026</code>
           </p>
+        </div>
+
+        <div className="mt-6">
+          <DemoResetButton />
         </div>
 
         <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">
