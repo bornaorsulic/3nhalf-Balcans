@@ -21,9 +21,15 @@ FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
 
-# Self-contained: the bundle carries the node_modules it needs.
-COPY --from=build /app/dist/standalone ./
+# The standalone bundle carries vinext's own runtime deps but NOT react: it expects
+# to sit inside a project and resolve that from the node_modules above it. So install
+# the production dependencies here, and put the bundle one level down — Node then
+# walks standalone/node_modules (vinext) and falls through to /app/node_modules (react).
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
+COPY --from=build /app/dist/standalone ./standalone
 
 EXPOSE 3000
 # vinext reads HOST, not HOSTNAME (which Linux sets for every process).
-CMD ["node", "server.js"]
+CMD ["node", "standalone/server.js"]
