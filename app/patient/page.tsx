@@ -4,7 +4,6 @@ import Link from "next/link";
 import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope, Watch } from "lucide-react";
 import { Sparkline } from "@/components/patient/charts/sparkline";
 import { Card, Delta, LinkCard, LoadingCards, SectionTitle, StatusPill } from "@/components/patient/ui";
-import { API_MODE } from "@/lib/app-config";
 import { useAppointmentQuestions, useDiary, useProfile, useSummaries, useWearables } from "@/lib/patient-api/hooks";
 import { formatDay, formatRelativeDay, formatTime, greetingFor, todayISO } from "@/lib/dates";
 import { METRICS, weeklyChange, type WearableMetric } from "@/lib/insights";
@@ -33,9 +32,6 @@ export default function HomePage() {
               {profile.firstName[0]}
               {profile.lastName[0]}
             </Link>
-            {API_MODE === "mock" && (
-              <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-ink-muted">Demo data</span>
-            )}
           </div>
         </header>
       ) : (

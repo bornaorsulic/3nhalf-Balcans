@@ -3,14 +3,13 @@
 import { useState } from "react";
 import { Eye, KeyRound, LogOut, Settings2, Stethoscope } from "lucide-react";
 
-import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
 import { Button, Card, SectionTitle } from "@/components/patient/ui";
 import { PasswordForm } from "@/components/profile/password-form";
 import { PreferencesForm } from "@/components/profile/preferences-form";
 import { endConnection, useConnections } from "@/lib/care-api";
 import { formatRelativeDay } from "@/lib/dates";
-import { isMockMode, logout, useSession } from "@/lib/session";
+import { logout, useSession } from "@/lib/session";
 
 export default function PatientProfilePage() {
   const { user, refresh } = useSession();
@@ -41,75 +40,69 @@ export default function PatientProfilePage() {
           </div>
         </Card>
 
-        {isMockMode ? (
-          <NeedsBackend feature="Account settings" />
-        ) : (
-          <>
-            <SectionTitle>Display</SectionTitle>
-            <Card>
-              <div className="mb-3 flex items-center gap-2">
-                <Settings2 aria-hidden className="size-4 text-primary" />
-                <p className="font-semibold">Time zone and clock</p>
-              </div>
-              {user && <PreferencesForm user={user} onSaved={() => refresh()} />}
-            </Card>
+        <SectionTitle>Display</SectionTitle>
+        <Card>
+          <div className="mb-3 flex items-center gap-2">
+            <Settings2 aria-hidden className="size-4 text-primary" />
+            <p className="font-semibold">Time zone and clock</p>
+          </div>
+          {user && <PreferencesForm user={user} onSaved={() => refresh()} />}
+        </Card>
 
-            <SectionTitle>Who can see my data</SectionTitle>
-            <Card>
-              <div className="mb-2 flex items-center gap-2">
-                <Eye aria-hidden className="size-4 text-primary" />
-                <p className="font-semibold">Your doctors</p>
-              </div>
-              <p className="mb-3 text-sm text-ink-secondary">
-                A connected doctor sees your check-ins, blood tests, wearable data and genetics, and the summaries they
-                approve for you. Disconnecting stops that immediately; your history stays with you.
-              </p>
-              {accepted.length === 0 ? (
-                <p className="text-sm text-ink-muted">No doctor is connected to your account.</p>
-              ) : (
-                <ul className="divide-y divide-line">
-                  {accepted.map((connection) => (
-                    <li key={connection.id} className="flex items-center justify-between gap-3 py-2.5">
-                      <div className="min-w-0">
-                        <p className="flex items-center gap-1.5 text-sm font-medium">
-                          <Stethoscope aria-hidden className="size-3.5 text-ink-muted" />
-                          {connection.clinician?.name}
-                        </p>
-                        <p className="text-xs text-ink-muted">
-                          Connected {formatRelativeDay(connection.respondedAt ?? connection.createdAt)}
-                        </p>
-                      </div>
-                      <Button
-                        variant="ghost"
-                        disabled={busy}
-                        onClick={async () => {
-                          setBusy(true);
-                          try {
-                            await endConnection(connection.id);
-                            await mutate();
-                          } finally {
-                            setBusy(false);
-                          }
-                        }}
-                      >
-                        Disconnect
-                      </Button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
+        <SectionTitle>Who can see my data</SectionTitle>
+        <Card>
+          <div className="mb-2 flex items-center gap-2">
+            <Eye aria-hidden className="size-4 text-primary" />
+            <p className="font-semibold">Your doctors</p>
+          </div>
+          <p className="mb-3 text-sm text-ink-secondary">
+            A connected doctor sees your check-ins, blood tests, wearable data and genetics, and the summaries they
+            approve for you. Disconnecting stops that immediately; your history stays with you.
+          </p>
+          {accepted.length === 0 ? (
+            <p className="text-sm text-ink-muted">No doctor is connected to your account.</p>
+          ) : (
+            <ul className="divide-y divide-line">
+              {accepted.map((connection) => (
+                <li key={connection.id} className="flex items-center justify-between gap-3 py-2.5">
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      <Stethoscope aria-hidden className="size-3.5 text-ink-muted" />
+                      {connection.clinician?.name}
+                    </p>
+                    <p className="text-xs text-ink-muted">
+                      Connected {formatRelativeDay(connection.respondedAt ?? connection.createdAt)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    disabled={busy}
+                    onClick={async () => {
+                      setBusy(true);
+                      try {
+                        await endConnection(connection.id);
+                        await mutate();
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  >
+                    Disconnect
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
 
-            <SectionTitle>Password</SectionTitle>
-            <Card>
-              <div className="mb-3 flex items-center gap-2">
-                <KeyRound aria-hidden className="size-4 text-primary" />
-                <p className="font-semibold">Change your password</p>
-              </div>
-              <PasswordForm />
-            </Card>
-          </>
-        )}
+        <SectionTitle>Password</SectionTitle>
+        <Card>
+          <div className="mb-3 flex items-center gap-2">
+            <KeyRound aria-hidden className="size-4 text-primary" />
+            <p className="font-semibold">Change your password</p>
+          </div>
+          <PasswordForm />
+        </Card>
 
         <Button
           variant="secondary"

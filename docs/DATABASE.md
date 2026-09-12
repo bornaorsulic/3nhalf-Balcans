@@ -19,7 +19,7 @@ data/patient_demo.json            handover file (committed, regenerate any time)
 PostgreSQL "health_agent"         labs, wearables, check-ins, genetics, summaries, questions, research
       │  backend/api.py  (FastAPI)
       ▼
-patient app at /patient           with NEXT_PUBLIC_API_MODE=http
+/patient and /clinician        both views, same numbers
 ```
 
 Nothing is duplicated by hand: re-run the two commands and the database matches
@@ -49,19 +49,13 @@ python3 scripts/ingest_patient.py          # load the demo patient
 uvicorn backend.api:app --reload --port 8000
 ```
 
-Point the frontend at it (in `.env.local`):
+The frontend needs no configuration when the API runs on `localhost:8000`; otherwise set
+`NEXT_PUBLIC_API_BASE_URL` in `.env.local`. Backend settings are environment variables in
+the shell that runs Python, not `.env.local` — see [.env.example](../.env.example).
 
-```bash
-NEXT_PUBLIC_API_MODE=http
-NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-```
-
-With accounts switched on, the patient comes from the signed-in session, so no patient
-id is configured in the frontend. Seed the demo logins with
-`python3 scripts/seed_accounts.py` (see [ACCOUNTS.md](ACCOUNTS.md)).
-
-Leaving `NEXT_PUBLIC_API_MODE=mock` (the default) keeps the app running entirely
-in the browser, so a demo never depends on the database being up.
+The patient always comes from the signed-in session, so no patient id is configured
+anywhere in the frontend. Seed the demo logins with `python3 scripts/seed_accounts.py`
+(see [ACCOUNTS.md](ACCOUNTS.md)).
 
 ## Scripts
 
@@ -124,7 +118,7 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 | [`backend/database.py`](../backend/database.py) | Connection helper (env vars or password prompt). |
 | [`backend/models.py`](../backend/models.py) | Database rows → the JSON shapes in `lib/patient-api/types.ts`. |
 | [`backend/retrieval.py`](../backend/retrieval.py) | Reads and writes patient data; `get_patient_context()` is what the RAG layer will feed to Nebius. |
-| [`backend/agent.py`](../backend/agent.py) | Scripted Health Agent over the patient's own rows — the Python twin of the mock agent. **Replace `answer()` with the Nebius call**, keeping the reply shape. |
+| [`backend/agent.py`](../backend/agent.py) | Scripted Health Agent over the patient's own rows — answering from the patient's own rows. **Replace `answer()` with the Nebius call**, keeping the reply shape. |
 | [`backend/api.py`](../backend/api.py) | FastAPI app implementing [PATIENT_API.md](PATIENT_API.md) and the account, connection, calendar and messaging routes. |
 | [`backend/auth.py`](../backend/auth.py) | Registration, login, sessions, and the current-user dependency. |
 | [`backend/care.py`](../backend/care.py) | Doctor directory, connections and messages. |
@@ -134,8 +128,5 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 
 ## What is not connected yet
 
-- **The offline demo** (`NEXT_PUBLIC_API_MODE=mock`) still runs on the TypeScript demo
-  data in the browser, including Borna's original clinician screens. With accounts
-  switched on, both views read the database.
 - **Nebius** is not wired in: `backend/agent.py` is a scripted stand-in.
 - **Amass** is not wired in: `research_sources` holds the papers the demo cites.

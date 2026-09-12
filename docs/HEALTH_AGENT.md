@@ -11,7 +11,7 @@ clinician review warnings.
 ## Architecture
 
 ```txt
-Clinician UI ──▶ Next.js route (thin proxy, holds no logic)
+Clinician UI ──▶ FastAPI  (backend/api.py)
                       │
                       ▼
               Python Health Agent  (backend/)
@@ -27,13 +27,9 @@ Clinician UI ──▶ Next.js route (thin proxy, holds no logic)
 
 **Why the agent lives in Python:** [`backend/retrieval.py`](../backend/retrieval.py)
 already assembles the full patient context from PostgreSQL,
-[`backend/agent.py`](../backend/agent.py) already encodes the safety rules and the
-reply shape, and FastAPI gives request validation for free. The Next.js route stays a
-proxy, so the frontend contract and key handling do not change.
-
-Building it in TypeScript instead is defensible — but then the Python backend becomes
-the data source the TypeScript agent calls. **Do not assemble patient context in both
-places.**
+[`backend/agent.py`](../backend/agent.py) already encodes the safety rules and the reply
+shape, and FastAPI gives request validation for free. The frontend calls the same API it
+already uses, so keys never reach the browser.
 
 ## Files
 
@@ -45,12 +41,11 @@ places.**
 | `backend/health_agent.py` | create | Orchestrator: context → evidence → prompt → validate → return |
 | [`backend/agent.py`](../backend/agent.py) | keep | Scripted fallback when the model fails |
 | [`backend/api.py`](../backend/api.py) | extend | Add `POST /api/v1/clinician/chat` |
-| [`app/api/clinician/chat/route.ts`](../app/api/clinician/chat/route.ts) | **replace** | Currently returns a canned answer; make it a proxy |
-| [`app/api/patient/demo/summary/route.ts`](../app/api/patient/demo/summary/route.ts) | **replace** | Currently returns the TypeScript mock summary |
+| `lib/care-api.ts` | extend | Client hook for the clinician chat endpoint |
 
 ## First endpoint
 
-`POST /api/clinician/chat` → proxies to `POST /api/v1/clinician/chat`
+`POST /api/v1/clinician/chat` (FastAPI, alongside the existing routes)
 
 **Input**
 
@@ -156,8 +151,7 @@ AMASS_BASE_URL=
   React component.
 - Add the names (no values) to [`.env.example`](../.env.example). `.env*` is gitignored.
 - Confirm the exact base URL and model id in the Nebius console rather than assuming.
-- `npm run build` targets Cloudflare Workers, so for a deployed proxy the key must be a
-  Worker secret, not a build-time variable.
+- The keys live only where the Python backend runs; the frontend never sees them.
 
 ## Minimum working demo
 
@@ -172,18 +166,18 @@ curl -s localhost:8000/api/v1/clinician/chat \
 Sofia's real numbers should appear in the answer: fasting glucose 108 mg/dL, sleep
 7.3 → 5.9 h, HRV −16 %, hs-CRP 3.1 mg/L.
 
-Then wire the UI: `askMockAgent()` in
-[`components/clinician-patient-detail.tsx`](../components/clinician-patient-detail.tsx)
-currently appends a canned reply from local state and never calls the API. It needs to
-become a real `fetch` with a loading state — **that file belongs to Person 3, so
-coordinate before editing it.**
+Then wire the UI: the clinician record
+([`components/clinician/patient-record.tsx`](../components/clinician/patient-record.tsx))
+has tabs for Overview, Summaries, Messages and Activity. The agent belongs in a new
+**Ask** tab that posts the question and renders `answer`, `riskSignals` and `citations`,
+with a loading state while the model thinks.
 
 ## Patient-facing summary
 
 Two different things, easy to conflate:
 
-- `GET /api/patient/demo/summary` returns the **clinician-facing** `ClinicianSummary`
-  (headline, body, suggested questions, safety note). Generate this with the model.
+- The **clinician-facing** summary (`ClinicianSummary` in `lib/types.ts`: headline, body,
+  suggested questions, safety note) is what the model should generate for the dashboard.
 - The **patient-facing** summary is `PatientSummary`, stored in the `summaries` table
   with `status: in_review | approved`. Generating it writes a **draft**; the patient app
   only ever receives `body` once the status is `approved`. Approval already exists:
@@ -219,8 +213,8 @@ For anyone who saw the original version:
 - `riskSignals` and `citations` now match `lib/types.ts` (`explanation` not `reason`,
   required `id`, `sources` from the `SourceLabel` union) so the UI renders them as-is.
 - The two API routes already exist as mocks — they are replaced, not created.
-- Clarified that `/api/patient/demo/summary` is the clinician-facing summary, and that
-  the patient-facing one stays gated behind approval.
+- Clarified that the clinician-facing summary and the patient-facing one are different
+  things, and that the patient-facing one stays gated behind approval.
 - Added: validation with pydantic, a deterministic fallback, timeouts, and the rule that
   citation URLs must come from retrieval and never from the model.
 - Flagged that the clinician chat UI does not call the API yet.

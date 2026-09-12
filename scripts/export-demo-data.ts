@@ -18,7 +18,7 @@ import { buildDemoDataset } from "@/lib/demo/dataset";
 const OUTPUT = resolve(process.cwd(), "data/patient_demo.json");
 
 const now = new Date();
-const data = buildDemoDataset(now, null);
+const data = buildDemoDataset(now);
 
 const exported = {
   format: "longevity-demo/v1",

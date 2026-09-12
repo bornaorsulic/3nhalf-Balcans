@@ -10,22 +10,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { saveClinicianProfile, useClinicianProfile } from "@/lib/care-api";
-import { isMockMode, logout, useRequireRole, useSession } from "@/lib/session";
+import { logout, useRequireRole, useSession } from "@/lib/session";
 
 export default function ClinicianProfilePage() {
   const { user, loading } = useRequireRole("clinician");
   const { refresh } = useSession();
 
-  if (isMockMode) {
-    return (
-      <Frame>
-        <p className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
-          Account settings need the backend. Start the API and set
-          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">NEXT_PUBLIC_API_MODE=http</code>.
-        </p>
-      </Frame>
-    );
-  }
   if (loading || !user) return <main className="min-h-screen bg-background" aria-busy="true" />;
 
   return (

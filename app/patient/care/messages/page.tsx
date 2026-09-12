@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 
-import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
 import { Card, LinkCard, LoadingCards, StatusPill } from "@/components/patient/ui";
 import { useConnections } from "@/lib/care-api";
 import { formatRelativeDay } from "@/lib/dates";
-import { isMockMode } from "@/lib/session";
 
 export default function MessagesPage() {
   const { data: connections, isLoading } = useConnections();
@@ -18,9 +16,7 @@ export default function MessagesPage() {
     <div className="pb-8">
       <PageHeader title="Messages" subtitle="Write to a doctor you are connected with" backHref="/patient/care" />
       <div className="space-y-3 px-5">
-        {isMockMode ? (
-          <NeedsBackend feature="Messages" />
-        ) : isLoading && !connections ? (
+        {isLoading && !connections ? (
           <LoadingCards count={2} />
         ) : threads.length === 0 ? (
           <Card className="text-center">

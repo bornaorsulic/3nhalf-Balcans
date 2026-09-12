@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { CalendarDays, Clock, MapPin, Stethoscope } from "lucide-react";
 
 import { MonthGrid, type DayCounts } from "@/components/calendar/month-grid";
-import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
 import { Button, Card, LoadingCards, SectionTitle, StatusPill, cx } from "@/components/patient/ui";
 import { useIsClient } from "@/hooks/use-is-client";
@@ -19,7 +18,6 @@ import {
   type Appointment,
 } from "@/lib/care-api";
 import { addDays, formatDay, formatRelativeDay, formatTime, parseDate, zonedDay } from "@/lib/dates";
-import { isMockMode } from "@/lib/session";
 
 const HORIZON_DAYS = 63;
 
@@ -72,14 +70,6 @@ export default function AppointmentsPage() {
     }
   }
 
-  if (isMockMode) {
-    return (
-      <div className="pb-8">
-        <PageHeader title="Appointments" backHref="/patient/care" />
-        <div className="px-5"><NeedsBackend feature="Appointments" /></div>
-      </div>
-    );
-  }
 
   return (
     <div className="pb-8">

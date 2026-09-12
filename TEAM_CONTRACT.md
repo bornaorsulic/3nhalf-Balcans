@@ -13,8 +13,8 @@
 ## Integration Rule
 
 Build against the TypeScript types in `lib/types.ts` and `lib/patient-api/types.ts`.
-The UI can use mock data during the hackathon, and the backend can replace the mock
-routes with Nebius, Amass, and RAG calls as long as the same JSON shape is returned.
+Both views read the database through `backend/api.py`. Nebius, Amass and the RAG layer
+can replace the stand-ins behind those endpoints as long as the JSON shape stays.
 
 Both views must show the same patient data. Add or change demo data in
 `lib/demo/data.ts` — never in a single view — then re-run:
@@ -32,24 +32,21 @@ lib/demo/data.ts → data/patient_demo.json → PostgreSQL → backend/api.py �
 
 ## Minimum API Endpoints
 
-Clinician contract (currently served by the Next.js routes in `app/api/`):
+Everything is served by `backend/api.py` from PostgreSQL, under `/api/v1`:
 
 ```txt
-GET  /api/patient/demo                   patient profile, biomarkers, wearables, timeline
-GET  /api/patient/demo/summary           clinician-facing AI summary
-GET  /api/patient/demo/evidence          Amass-style research citations
-POST /api/clinician/chat                 { patientId, question } -> { patientId, answer, citations }
-POST /api/patient/demo/approve-summary   mark a patient-facing summary approved
+auth          /auth/register /auth/login /auth/logout /auth/me (PATCH) /auth/password
+patient data  /patients/{id} + /labs /wearables /genetics /diary /chat /summaries /audit
+care network  /doctors /connections /connections/{id}/respond|end|messages|read
+calendar      /clinicians/{id}/slots  /clinician/slots  /clinician/availability-rules
+              /appointments  /appointments/{id}/cancel|reschedule
+summaries     PUT /patients/{id}/summaries/{summaryId}   (clinician edit, version trail)
+              POST .../approve                           (clinician-in-the-loop)
+research      /research?q=                               (Amass stand-in)
 ```
 
-Patient app contract (served by `backend/api.py` from PostgreSQL, documented in
-`docs/PATIENT_API.md`): profile, labs, wearables, genetics, check-ins, chat,
-summaries, appointment questions, plus:
-
-```txt
-POST /api/v1/patients/{id}/summaries/{summaryId}/approve   clinician-in-the-loop approval
-GET  /api/v1/research?q=                                   research evidence (Amass stand-in)
-```
+Shapes are documented in `docs/PATIENT_API.md` and `docs/ACCOUNTS.md`. The clinician
+agent endpoint is still to be built — see `docs/HEALTH_AGENT.md`.
 
 ## Person 1 — AI / backend
 
@@ -82,6 +79,5 @@ API checks that on every patient route. Keep it that way when adding endpoints.
 
 ## Person 4 — Patient app
 
-All data goes through the `PatientApi` interface (`lib/patient-api`). It runs on the
-shared demo data by default and on the backend when `NEXT_PUBLIC_API_MODE=http`.
-Patients only ever see summaries a clinician has approved.
+All data goes through the `PatientApi` interface (`lib/patient-api`), which talks to the
+backend. Patients only ever see summaries a clinician has approved.

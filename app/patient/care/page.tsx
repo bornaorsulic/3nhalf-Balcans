@@ -2,13 +2,12 @@
 
 import { CalendarDays, FileText, MessageCircle, Settings2, Stethoscope } from "lucide-react";
 
-import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
 import { LinkCard, LoadingCards, StatusPill } from "@/components/patient/ui";
 import { useAppointments, useConnections } from "@/lib/care-api";
 import { formatDay, formatRelativeDay, formatTime } from "@/lib/dates";
 import { useSummaries } from "@/lib/patient-api/hooks";
-import { isMockMode, useSession } from "@/lib/session";
+import { useSession } from "@/lib/session";
 
 export default function CarePage() {
   return (
@@ -16,7 +15,7 @@ export default function CarePage() {
       <PageHeader title="Care" subtitle="Your doctors, messages and appointments" />
       <div className="space-y-3 px-5">
         <SummariesCard />
-        {isMockMode ? <NeedsBackend feature="Messages, doctors and appointments" /> : <ConnectedCards />}
+        <ConnectedCards />
         <AccountRow />
 
         <p className="px-1 pt-2 text-center text-[11px] leading-relaxed text-ink-muted">
@@ -112,7 +111,7 @@ function ConnectedCards() {
 
 function AccountRow() {
   const { user } = useSession();
-  if (isMockMode || !user) return null;
+  if (!user) return null;
 
   return (
     <LinkCard href="/patient/profile" className="mt-6">

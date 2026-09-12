@@ -2,11 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Activity, HeartHandshake, Home, MessageCircle, NotebookPen, type LucideIcon } from "lucide-react";
-import { useSWRConfig } from "swr";
-import { subscribeDemoState } from "@/lib/demo/store";
-import { isMockMode, useRequireRole } from "@/lib/session";
+import { useRequireRole } from "@/lib/session";
 import { useSummaries } from "@/lib/patient-api/hooks";
 import { cx } from "./ui";
 
@@ -23,17 +21,12 @@ const TABS: { href: string; label: string; icon: LucideIcon }[] = [
  * phone-sized frame so the demo looks like a mobile app.
  */
 export function AppShell({ children }: { children: ReactNode }) {
-  const { mutate } = useSWRConfig();
   const { user, loading } = useRequireRole("patient");
-
-  // When the clinician view changes shared demo data (e.g. approves a summary,
-  // possibly in another tab), refetch everything so this view updates live.
-  useEffect(() => subscribeDemoState(() => void mutate(() => true)), [mutate]);
 
   return (
     <div className="flex h-dvh justify-center bg-backdrop sm:items-center sm:p-6">
       <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-canvas text-ink sm:max-h-[900px] sm:rounded-[2.5rem] sm:shadow-frame">
-        {!isMockMode && (loading || !user) ? (
+        {loading || !user ? (
           <main className="flex min-h-0 flex-1 items-center justify-center" aria-busy="true">
             <p className="text-sm text-ink-muted">Loading your account…</p>
           </main>

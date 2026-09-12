@@ -23,7 +23,7 @@ import {
   type Slot,
 } from "@/lib/care-api";
 import { addDays, formatDay, formatTime, parseDate, startOfWeek, toISODate, zonedDay } from "@/lib/dates";
-import { isMockMode, useRequireRole } from "@/lib/session";
+import { useRequireRole } from "@/lib/session";
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const HORIZON_DAYS = 63; // the template generates eight weeks ahead
@@ -91,16 +91,6 @@ export default function ClinicianCalendarPage() {
     }
   }
 
-  if (isMockMode) {
-    return (
-      <Frame view={view} setView={setView}>
-        <p className="rounded-lg border bg-card p-6 text-sm text-muted-foreground shadow-sm">
-          The calendar is shared with your patients, so it needs the backend. Start the API and set
-          <code className="mx-1 rounded bg-muted px-1 py-0.5 text-xs">NEXT_PUBLIC_API_MODE=http</code>.
-        </p>
-      </Frame>
-    );
-  }
   if (loading || !user) return <main className="min-h-screen bg-background" aria-busy="true" />;
 
   return (

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import useSWR from "swr";
-import { API_BASE_URL, API_MODE } from "@/lib/app-config";
+import { API_BASE_URL } from "@/lib/app-config";
 import { setDisplayPreferences } from "@/lib/dates";
 
 /*
@@ -12,8 +12,8 @@ import { setDisplayPreferences } from "@/lib/dates";
  * The backend keeps the session in an HttpOnly cookie, so every request just
  * needs `credentials: "include"`; the browser never sees the token.
  *
- * In mock mode (NEXT_PUBLIC_API_MODE=mock) there is no backend and no login:
- * the app runs as the demo patient, which keeps the zero-setup demo working.
+ * Every screen needs a session: the backend resolves the patient or clinician from
+ * the cookie, so no patient id is configured in the frontend.
  */
 
 export interface SessionUser {
@@ -27,19 +27,6 @@ export interface SessionUser {
   timeZone: string | null;
   timeFormat: "12h" | "24h";
 }
-
-export const MOCK_SESSION: SessionUser = {
-  id: "mock-user",
-  email: "demo@local",
-  role: "patient",
-  displayName: "Sofia Lind",
-  patientId: "demo",
-  clinicianId: null,
-  timeZone: null,
-  timeFormat: "24h",
-};
-
-export const isMockMode = API_MODE === "mock";
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
   return fetch(`${API_BASE_URL.replace(/\/$/, "")}${path}`, {
@@ -63,7 +50,6 @@ export async function apiJson<T>(path: string, init: RequestInit = {}): Promise<
 }
 
 async function fetchSession(): Promise<SessionUser | null> {
-  if (isMockMode) return MOCK_SESSION;
   const response = await apiFetch("/auth/me");
   if (response.status === 401) return null;
   if (!response.ok) throw new Error("Could not load your session");
@@ -87,7 +73,7 @@ export function useRequireRole(role: "patient" | "clinician") {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading || isMockMode) return;
+    if (loading) return;
     if (!user) {
       const next = typeof window === "undefined" ? "" : window.location.pathname;
       router.replace(`/login?next=${encodeURIComponent(next)}`);

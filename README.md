@@ -3,133 +3,146 @@
 Next.js, React, TypeScript and a Python/PostgreSQL backend for the AI longevity
 hackathon: an evidence-grounded Health Agent with two views of the same patient.
 
-- `/clinician`: clinician desktop dashboard (Person 3). Patient roster, timeline,
-  biomarkers, wearable trends, AI visit summary, tasks, risk and prevention, files
-  and notes, clinician chat, evidence, and approving the patient summary.
-- `/patient`: patient mobile app (Person 4). Daily check-in, Health Agent chat with
-  sources, health data in plain language, and an inbox with clinician-approved
-  summaries and appointment prep.
-- `/login`, `/register`: accounts for patients and doctors.
-- `/`: entry page with the demo logins.
+- `/patient` — patient app (phone-sized): daily check-in, Health Agent chat with
+  sources, health data in plain language, doctors, messages, appointments, and an
+  inbox of clinician-approved summaries.
+- `/clinician` — clinician desktop: patient roster, requests, patient record with
+  summary editing, messaging, and a calendar driven by a weekly template.
+- `/login`, `/register` — accounts for patients and doctors.
 
-## Two ways to run it
+## Setup
 
-| Mode | What works | Setup |
-|---|---|---|
-| **Offline demo** (`NEXT_PUBLIC_API_MODE=mock`, default) | One patient, one clinician view, shared through the browser | `npm install && npm run dev` |
-| **Full product** (`NEXT_PUBLIC_API_MODE=http`) | Accounts, several doctors and patients, connections, calendar, messaging, summary editing | also PostgreSQL + the Python backend |
-
-## Quick start (no backend needed)
+You need **Node 22.13+**, **Python 3.10+** and a **PostgreSQL** you can reach.
 
 ```bash
+# 1. frontend dependencies
 npm install
-npm run dev
-```
 
-Open http://localhost:5173. The patient view shows inside a phone-sized frame on a
-laptop; on a phone it runs full screen and can be installed to the home screen.
-
-This runs on the shared demo data in the browser, so a demo never depends on a
-database being up.
-
-## Running with the database
-
-The same demo patient also lives in PostgreSQL, and the patient app can run
-against it. Full instructions: [docs/DATABASE.md](docs/DATABASE.md).
-
-```bash
+# 2. backend dependencies
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-python3 scripts/setup_database.py      # create database + tables
-npm run export:demo                    # frontend demo data -> data/patient_demo.json
-python3 scripts/ingest_patient.py      # load it into PostgreSQL
+# 3. database: schema, demo patient, demo accounts
+python3 scripts/setup_database.py
+npm run export:demo
+python3 scripts/ingest_patient.py
+python3 scripts/seed_accounts.py
+
+# 4. run the API (leave it running)
 uvicorn backend.api:app --reload --port 8000
 ```
 
-Seed the demo accounts, then set `NEXT_PUBLIC_API_MODE=http` in `.env.local` (see
-`.env.example`) and restart `npm run dev`:
+In a second terminal:
 
 ```bash
-python3 scripts/seed_accounts.py       # demo logins, doctor directory, slots
+npm run dev
 ```
 
-Sign in at `/login` (all demo accounts use the password `demo1234`). Patients and
-doctors now have real accounts: a patient can find a doctor and ask to be taken on, a
-doctor accepts or invites, they message each other, the doctor publishes appointment
-times the patient books, and the doctor edits and approves the patient-facing summary.
-See [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
+Open http://localhost:5173 and sign in. Every demo account uses the password
+`demo1234`; the landing page lists them.
 
-## One patient, two views, one dataset
+| Account | Who |
+|---|---|
+| `sofia@demo.health` | Patient with a year of results and 30 days of wearable data |
+| `mikael@demo.health` | Patient with an empty account, to show onboarding |
+| `eriksson@demo.health` | Doctor connected to both patients |
+| `moreau@demo.health` | Doctor with a pending request from Sofia |
 
-Both views show the same demo patient, **Sofia Lind** (46, fatigue and poor
-recovery, Dr. Eriksson), and the database holds exactly the same numbers:
+Creating a doctor account needs an invite code: `LONGEVITY-2026`.
 
-- [`lib/demo/data.ts`](lib/demo/data.ts) — the single source of truth. Labs with a
-  year of history (fasting glucose 94 → 101 → 108 mg/dL, hs-CRP 3.1, vitamin D 24),
-  30 days of wearable data, check-ins, genetics, patient-facing summaries, and real
-  research citations. Dates are relative to today.
-- [`lib/demo/clinician-record.ts`](lib/demo/clinician-record.ts) — derives the
-  clinician record (`lib/types.ts` shapes) from it.
-- [`lib/patient-api/mock`](lib/patient-api/mock) — serves it to the patient app
-  (`lib/patient-api/types.ts` shapes).
-- [`lib/demo/store.ts`](lib/demo/store.ts) — what happens during a demo (check-ins,
-  questions, approvals) is kept in localStorage and read by both views, live across tabs.
-- `npm run export:demo` → `data/patient_demo.json` → `scripts/ingest_patient.py` →
-  PostgreSQL → [`backend/api.py`](backend/api.py) — the same data for the backend.
+### Configuration
 
-Demo flow: log a check-in as Sofia in `/patient/log`, and it appears in her clinician
-timeline at `/clinician/demo`. Approve the patient-facing summary there, and it
-arrives in the patient Inbox. Reset from `/`.
+The frontend needs no configuration by default. To point it at a backend that is not
+on `localhost:8000`, create `.env.local`:
 
-## Integration rule
+```bash
+NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1
+```
 
-Everyone builds against the shared types:
+Backend settings are **environment variables in the shell that runs Python** — they are
+not read from `.env.local`. Without them the scripts use
+`postgres@localhost:5432/health_agent` and ask for the password:
 
-- [`lib/types.ts`](lib/types.ts) — clinician-facing shapes and the minimum API
-  endpoints (see [TEAM_CONTRACT.md](TEAM_CONTRACT.md)).
-- [`lib/patient-api/types.ts`](lib/patient-api/types.ts) — the patient app contract,
-  implemented by both the browser mock and the Python backend
-  (see [docs/PATIENT_API.md](docs/PATIENT_API.md)).
+```bash
+export DATABASE_URL=postgresql://postgres:secret@localhost:5432/health_agent
+```
 
-The frontend does not call Nebius, Amass, or the database directly. It calls API
-routes, and the backend decides whether each route is mocked or live.
+See [.env.example](.env.example) and [docs/DATABASE.md](docs/DATABASE.md).
+
+## The demo patient
+
+Both views show **Sofia Lind** (46, fatigue and poor recovery, Dr. Eriksson), and the
+numbers agree everywhere because they come from one place:
+
+```txt
+lib/demo/data.ts          the story: labs with a year of history (fasting glucose
+      │                   94 → 101 → 108 mg/dL, hs-CRP 3.1, vitamin D 24), 30 days of
+      │                   wearable data, check-ins, genetics, summaries, research
+      │  npm run export:demo
+      ▼
+data/patient_demo.json    handover file, regenerate any time (dates stay relative to today)
+      │  python3 scripts/ingest_patient.py
+      ▼
+PostgreSQL                one source of truth for both views
+      │  backend/api.py
+      ▼
+/patient  and  /clinician
+```
+
+Demo flow: log a check-in as Sofia, see it appear in her record on the clinician side,
+edit and approve her summary there, and watch it arrive in her inbox. Then book an
+appointment from her month calendar against the doctor's published times.
+
+## How it fits together
+
+| Piece | Where |
+|---|---|
+| Patient app contract | [lib/patient-api/types.ts](lib/patient-api/types.ts), documented in [docs/PATIENT_API.md](docs/PATIENT_API.md) |
+| Accounts, connections, calendar, messaging | [docs/ACCOUNTS.md](docs/ACCOUNTS.md) |
+| Database and scripts | [docs/DATABASE.md](docs/DATABASE.md) |
+| Health Agent plan (Nebius) | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
+| Team split and contracts | [TEAM_CONTRACT.md](TEAM_CONTRACT.md) |
+
+The frontend never calls Nebius, Amass or the database directly: it calls the API, and
+the backend decides what is real and what is still a stand-in.
 
 ## Look and feel
 
-Both views share one design system. All colors, radii, shadows and the font are CSS
-variables in [`app/theme.css`](app/theme.css). The shadcn/ui variable names
-(`--primary`, `--card`, ...) used by `components/ui` and the clinician screens point
-at the same tokens as the patient screens. To restyle the product, change the values
-in `app/theme.css` only.
+Both views share one design system. Every color, radius, shadow and the font are CSS
+variables in [app/theme.css](app/theme.css); the shadcn/ui names (`--primary`, `--card`,
+…) point at the same tokens as the patient screens. To restyle the product, change that
+file only.
 
 ## Project layout
 
 ```txt
-app/clinician/        clinician desktop routes
-app/patient/          patient mobile routes (Home, chat, log, health, inbox)
-app/api/              mock API routes (clinician contract, TypeScript)
+app/patient/          patient routes (home, chat, log, health, care, profile)
+app/clinician/        clinician routes (roster, record, calendar, profile)
+app/login, /register  accounts
 app/theme.css         design tokens for both views
 components/ui/        shadcn/ui components
-components/patient/   patient app components and charts
-lib/demo/             shared demo patient data + demo store
-lib/patient-api/      patient app API contract, mock and HTTP clients
-lib/mock-data.ts      clinician roster and records
-backend/              Python: database access, retrieval, agent stand-in, FastAPI app
-scripts/              database setup, ingest, inspection, demo export
-data/                 patient files loaded into the database
-docs/                 API contract, database, accounts and Health Agent documentation
+components/patient/   patient components and charts
+components/clinician/ clinician roster and patient record
+components/calendar/  week and month grids
+components/profile/   shared preference and password forms
+lib/demo/             the demo patient, exported to the database
+lib/patient-api/      patient app contract and HTTP client
+lib/care-api.ts       connections, messages, calendar, profiles
+backend/              FastAPI app, auth, retrieval, care, schedule, agent stand-in
+scripts/              database setup, ingest, seed, demo export
+docs/                 API, database, accounts and Health Agent documentation
 ```
 
 ## Status
 
 | Piece | State |
 |---|---|
-| Accounts | Email + password, sessions, invite-only doctor accounts, profile page with time zone, clock and password (`docs/ACCOUNTS.md`). |
-| Patient app | Runs on the browser mock **or** the PostgreSQL backend (`NEXT_PUBLIC_API_MODE`). |
-| Clinician dashboard | Account-based roster, calendar, messaging and summary editing on the backend; the offline demo keeps Borna's original screens. |
-| Care network | N:N connections with request, invite, accept, reject and disconnect. |
-| Calendar | Doctor keeps a weekly template and sees a week grid with a month view; patient books from a month calendar, cancels or reschedules. |
-| Database | Schema, ingest and read/write API working (see docs/DATABASE.md). |
-| Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape. Plan: [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md). |
-| Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs. |
+| Accounts | Email + password, sessions, invite-only doctor accounts, profile with time zone and clock |
+| Care network | N:N connections: request, invite, accept, reject, disconnect |
+| Calendar | Weekly template generating eight weeks; week grid with month view; patient books from a month calendar |
+| Messaging | Doctor ↔ patient threads with unread counts |
+| Summaries | Clinician edits with a version trail; only approved text reaches the patient |
+| Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape — see [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
+| Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs |
+
+Prototype with fictional patients. Not medical advice, and not for real patient data.
