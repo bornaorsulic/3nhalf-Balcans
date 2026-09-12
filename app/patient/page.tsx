@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope, Watch } from "lucide-react";
 import { Sparkline } from "@/components/patient/charts/sparkline";
 import { Card, Delta, LinkCard, LoadingCards, SectionTitle, StatusPill } from "@/components/patient/ui";
 import { API_MODE } from "@/lib/app-config";
@@ -25,13 +25,14 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            <span
-              aria-hidden
-              className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary"
+            <Link
+              href="/patient/profile"
+              aria-label="Your profile and settings"
+              className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary transition-colors hover:bg-primary-soft/70"
             >
               {profile.firstName[0]}
               {profile.lastName[0]}
-            </span>
+            </Link>
             {API_MODE === "mock" && (
               <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-ink-muted">Demo data</span>
             )}
@@ -176,7 +177,15 @@ function TrendTiles() {
       >
         Last 7 days vs. a month ago
       </SectionTitle>
-      {data ? (
+      {data && data.days.length === 0 ? (
+        <Card className="text-center">
+          <Watch aria-hidden className="mx-auto size-8 text-ink-muted" />
+          <p className="mt-2 font-semibold">No wearable data yet</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Once your sleep and heart data arrive, your trends show up here.
+          </p>
+        </Card>
+      ) : data ? (
         <div className="grid grid-cols-2 gap-3">
           {tiles.map((metric) => {
             const m = METRICS[metric];

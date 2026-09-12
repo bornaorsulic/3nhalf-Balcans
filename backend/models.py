@@ -132,8 +132,12 @@ def source(row: dict) -> dict:
     return item
 
 
-def summary(row: dict, sources: list[dict], approved_by: dict | None) -> dict:
-    """Patients only ever see the body of an approved summary."""
+def summary(row: dict, sources: list[dict], approved_by: dict | None, include_draft_body: bool = False) -> dict:
+    """Patients only ever see the body of an approved summary.
+
+    A clinician reviewing the draft needs to read it, so the API passes
+    `include_draft_body=True` for clinician accounts only.
+    """
     result: dict[str, Any] = {
         "id": row["id"],
         "title": row["title"],
@@ -147,7 +151,7 @@ def summary(row: dict, sources: list[dict], approved_by: dict | None) -> dict:
     if row.get("read_at"):
         result["readAt"] = iso_time(row["read_at"])
 
-    if row["status"] == "approved":
+    if row["status"] == "approved" or include_draft_body:
         result["body"] = {
             "whatWeSee": row.get("what_we_see") or "",
             "whatItMeans": row.get("what_it_means") or "",

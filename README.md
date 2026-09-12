@@ -9,7 +9,15 @@ hackathon: an evidence-grounded Health Agent with two views of the same patient.
 - `/patient`: patient mobile app (Person 4). Daily check-in, Health Agent chat with
   sources, health data in plain language, and an inbox with clinician-approved
   summaries and appointment prep.
-- `/`: entry page with the demo flow and a "Reset demo data" button.
+- `/login`, `/register`: accounts for patients and doctors.
+- `/`: entry page with the demo logins.
+
+## Two ways to run it
+
+| Mode | What works | Setup |
+|---|---|---|
+| **Offline demo** (`NEXT_PUBLIC_API_MODE=mock`, default) | One patient, one clinician view, shared through the browser | `npm install && npm run dev` |
+| **Full product** (`NEXT_PUBLIC_API_MODE=http`) | Accounts, several doctors and patients, connections, calendar, messaging, summary editing | also PostgreSQL + the Python backend |
 
 ## Quick start (no backend needed)
 
@@ -39,8 +47,18 @@ python3 scripts/ingest_patient.py      # load it into PostgreSQL
 uvicorn backend.api:app --reload --port 8000
 ```
 
-Then set `NEXT_PUBLIC_API_MODE=http` in `.env.local` (see `.env.example`) and
-restart `npm run dev`. The patient view now reads and writes real database rows.
+Seed the demo accounts, then set `NEXT_PUBLIC_API_MODE=http` in `.env.local` (see
+`.env.example`) and restart `npm run dev`:
+
+```bash
+python3 scripts/seed_accounts.py       # demo logins, doctor directory, slots
+```
+
+Sign in at `/login` (all demo accounts use the password `demo1234`). Patients and
+doctors now have real accounts: a patient can find a doctor and ask to be taken on, a
+doctor accepts or invites, they message each other, the doctor publishes appointment
+times the patient books, and the doctor edits and approves the patient-facing summary.
+See [docs/ACCOUNTS.md](docs/ACCOUNTS.md).
 
 ## One patient, two views, one dataset
 
@@ -100,15 +118,18 @@ lib/mock-data.ts      clinician roster and records
 backend/              Python: database access, retrieval, agent stand-in, FastAPI app
 scripts/              database setup, ingest, inspection, demo export
 data/                 patient files loaded into the database
-docs/                 API contract, database and Health Agent documentation
+docs/                 API contract, database, accounts and Health Agent documentation
 ```
 
 ## Status
 
 | Piece | State |
 |---|---|
+| Accounts | Email + password, sessions, invite-only doctor accounts, profile page with time zone, clock and password (`docs/ACCOUNTS.md`). |
 | Patient app | Runs on the browser mock **or** the PostgreSQL backend (`NEXT_PUBLIC_API_MODE`). |
-| Clinician dashboard | Runs on the shared TypeScript demo data; not yet moved to the backend. |
+| Clinician dashboard | Account-based roster, calendar, messaging and summary editing on the backend; the offline demo keeps Borna's original screens. |
+| Care network | N:N connections with request, invite, accept, reject and disconnect. |
+| Calendar | Doctor keeps a weekly template and sees a week grid with a month view; patient books from a month calendar, cancels or reschedules. |
 | Database | Schema, ingest and read/write API working (see docs/DATABASE.md). |
 | Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape. Plan: [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md). |
 | Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs. |

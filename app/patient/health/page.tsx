@@ -81,6 +81,14 @@ function WearablesPanel() {
   const { data, error, mutate } = useWearables(30);
   if (error) return <ErrorState onRetry={() => mutate()} />;
   if (!data) return <LoadingCards count={3} />;
+  if (data.days.length === 0) {
+    return (
+      <EmptyPanel
+        title="No wearable data yet"
+        hint="Connect a wearable, or wait for the first nights to sync. Sleep, HRV, resting heart rate and steps appear here."
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -131,6 +139,14 @@ function LabsPanel() {
   const { data, error, mutate } = useLabs();
   if (error) return <ErrorState onRetry={() => mutate()} />;
   if (!data) return <LoadingCards count={4} />;
+  if (data.length === 0) {
+    return (
+      <EmptyPanel
+        title="No blood tests yet"
+        hint="When your clinic adds results, each one is explained here in plain language with its typical range."
+      />
+    );
+  }
 
   const latestDate = data[0]?.history.at(-1)?.date;
   const flagged = data.filter((l) => l.status !== "normal");
@@ -216,6 +232,14 @@ function GenesPanel() {
   const { data, error, mutate } = useGenetics();
   if (error) return <ErrorState onRetry={() => mutate()} />;
   if (!data) return <LoadingCards count={3} />;
+  if (data.length === 0) {
+    return (
+      <EmptyPanel
+        title="No genetic results yet"
+        hint="If you have a genetic test, your clinic can add it. Results are explained here without jargon."
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -244,5 +268,15 @@ function GenesPanel() {
         </Card>
       ))}
     </div>
+  );
+}
+
+function EmptyPanel({ title, hint }: { title: string; hint: string }) {
+  return (
+    <Card className="text-center">
+      <Info aria-hidden className="mx-auto size-8 text-ink-muted" />
+      <p className="mt-2 font-semibold">{title}</p>
+      <p className="mt-1 text-sm text-ink-muted">{hint}</p>
+    </Card>
   );
 }

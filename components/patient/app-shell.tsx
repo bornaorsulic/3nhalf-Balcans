@@ -3,9 +3,10 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
-import { Activity, Home, Inbox, MessageCircle, NotebookPen, type LucideIcon } from "lucide-react";
+import { Activity, HeartHandshake, Home, MessageCircle, NotebookPen, type LucideIcon } from "lucide-react";
 import { useSWRConfig } from "swr";
 import { subscribeDemoState } from "@/lib/demo/store";
+import { isMockMode, useRequireRole } from "@/lib/session";
 import { useSummaries } from "@/lib/patient-api/hooks";
 import { cx } from "./ui";
 
@@ -14,7 +15,7 @@ const TABS: { href: string; label: string; icon: LucideIcon }[] = [
   { href: "/patient/chat", label: "Ask", icon: MessageCircle },
   { href: "/patient/log", label: "Log", icon: NotebookPen },
   { href: "/patient/health", label: "Health", icon: Activity },
-  { href: "/patient/inbox", label: "Inbox", icon: Inbox },
+  { href: "/patient/care", label: "Care", icon: HeartHandshake },
 ];
 
 /**
@@ -23,6 +24,7 @@ const TABS: { href: string; label: string; icon: LucideIcon }[] = [
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const { mutate } = useSWRConfig();
+  const { user, loading } = useRequireRole("patient");
 
   // When the clinician view changes shared demo data (e.g. approves a summary,
   // possibly in another tab), refetch everything so this view updates live.
@@ -31,8 +33,16 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="flex h-dvh justify-center bg-backdrop sm:items-center sm:p-6">
       <div className="relative flex h-full w-full max-w-[430px] flex-col overflow-hidden bg-canvas text-ink sm:max-h-[900px] sm:rounded-[2.5rem] sm:shadow-frame">
-        <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
-        <BottomNav />
+        {!isMockMode && (loading || !user) ? (
+          <main className="flex min-h-0 flex-1 items-center justify-center" aria-busy="true">
+            <p className="text-sm text-ink-muted">Loading your account…</p>
+          </main>
+        ) : (
+          <>
+            <main className="min-h-0 flex-1 overflow-y-auto">{children}</main>
+            <BottomNav />
+          </>
+        )}
       </div>
     </div>
   );
@@ -62,7 +72,7 @@ function BottomNav() {
                   <Icon aria-hidden className="size-5" strokeWidth={active ? 2.25 : 1.75} />
                 </span>
                 {label}
-                {href === "/patient/inbox" && unread > 0 && (
+                {href === "/patient/care" && unread > 0 && (
                   <span className="absolute right-[calc(50%-1.4rem)] top-2 flex size-4 items-center justify-center rounded-full bg-critical text-[10px] font-bold text-on-primary">
                     {unread}
                     <span className="sr-only"> unread</span>

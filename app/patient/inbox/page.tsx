@@ -145,6 +145,13 @@ function Summaries() {
       <SectionTitle>Summaries from your care team</SectionTitle>
       {!summaries ? (
         <LoadingCards count={2} />
+      ) : summaries.length === 0 ? (
+        <Card className="text-center">
+          <p className="font-semibold">Nothing here yet</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            When your clinician approves a summary of your results, it appears here.
+          </p>
+        </Card>
       ) : (
         <div className="space-y-2.5">
           {summaries.map((s) =>
