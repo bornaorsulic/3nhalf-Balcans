@@ -17,6 +17,12 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile.backend
     restart: unless-stopped
+    # Provider keys and tuning live in deploy/.env: NEBIUS_*, AMASS_*,
+    # ELEVENLABS_API_KEY, HEALTH_AGENT_BACKEND_TOKEN. Everything in that file is
+    # passed to the container; the block below overrides anything of the same name,
+    # so deployment-specific settings always win.
+    env_file:
+      - .env
     environment:
       # Managed PostgreSQL connection string.
       DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
