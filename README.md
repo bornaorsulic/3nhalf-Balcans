@@ -60,12 +60,23 @@ on `localhost:8000`, create `.env.local`:
 NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1
 ```
 
-Backend settings are **environment variables in the shell that runs Python** — they are
-not read from `.env.local`. Without them the scripts use
-`postgres@localhost:5432/health_agent` and ask for the password:
+Database settings are **environment variables in the shell that runs Python**.
+Without them the scripts use `postgres@localhost:5432/health_agent` and ask for
+the password:
 
 ```bash
 export DATABASE_URL=postgresql://postgres:secret@localhost:5432/health_agent
+```
+
+Nebius and Amass settings may either be exported in that Python shell or saved in
+ignored `.env.local` for local development:
+
+```bash
+NEBIUS_BASE_URL=http://PUBLIC-IP:8000/v1
+NEBIUS_API_KEY=...
+NEBIUS_MODEL=...
+AMASS_API_KEY=...
+AMASS_BASE_URL=...
 ```
 
 See [.env.example](.env.example) and [docs/DATABASE.md](docs/DATABASE.md).
