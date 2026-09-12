@@ -1,0 +1,949 @@
+{
+  "format": "longevity-demo/v1",
+  "generatedAt": "2026-09-12T06:46:14.469Z",
+  "patient": {
+    "id": "demo",
+    "firstName": "Sofia",
+    "lastName": "Lind",
+    "birthDate": "1980-02-18",
+    "sex": "female",
+    "goals": [
+      "Improve energy, sleep, and metabolic health"
+    ]
+  },
+  "clinician": {
+    "id": "clin-eriksson",
+    "name": "Dr. Eriksson",
+    "role": "Preventive medicine",
+    "practice": "Longevity Health Clinic"
+  },
+  "appointment": {
+    "id": "appt-1",
+    "startsAt": "2026-09-19T08:30:00.000Z",
+    "clinicianId": "clin-eriksson",
+    "reason": "Follow-up: fatigue, sleep and blood results",
+    "location": "Longevity Health Clinic, Room 2"
+  },
+  "labs": [
+    {
+      "id": "lab-glucose",
+      "code": "1558-6",
+      "name": "Fasting glucose",
+      "category": "metabolic",
+      "unit": "mg/dL",
+      "referenceLow": 70,
+      "referenceHigh": 99,
+      "referenceText": "70–99 mg/dL",
+      "status": "borderline",
+      "plainLanguage": "Your blood sugar after not eating overnight. It has risen over the past year and is now slightly above the typical range. This is common, is not a diagnosis, and often improves with better sleep, activity and diet.",
+      "observations": [
+        {
+          "date": "2025-09-08",
+          "value": 94
+        },
+        {
+          "date": "2026-03-10",
+          "value": 101
+        },
+        {
+          "date": "2026-09-08",
+          "value": 108
+        }
+      ]
+    },
+    {
+      "id": "lab-crp",
+      "code": "30522-7",
+      "name": "hs-CRP",
+      "category": "inflammation",
+      "unit": "mg/L",
+      "referenceLow": null,
+      "referenceHigh": 3,
+      "referenceText": "below 3 mg/L",
+      "status": "borderline",
+      "plainLanguage": "A marker of low-level inflammation in the body. Yours is just above the usual range. It can rise with poor sleep, stress, a recent cold or other inflammation, so your clinician will look at it together with how you've been feeling.",
+      "observations": [
+        {
+          "date": "2025-09-08",
+          "value": 1.2
+        },
+        {
+          "date": "2026-03-10",
+          "value": 1.9
+        },
+        {
+          "date": "2026-09-08",
+          "value": 3.1
+        }
+      ]
+    },
+    {
+      "id": "lab-vitd",
+      "code": "1989-3",
+      "name": "Vitamin D (25-OH)",
+      "category": "vitamins",
+      "unit": "ng/mL",
+      "referenceLow": 30,
+      "referenceHigh": 100,
+      "referenceText": "30–100 ng/mL",
+      "status": "low",
+      "plainLanguage": "Your vitamin D is below the usual range. Low vitamin D is very common, especially after winter, and can add to tiredness.",
+      "observations": [
+        {
+          "date": "2025-09-08",
+          "value": 31
+        },
+        {
+          "date": "2026-03-10",
+          "value": 27
+        },
+        {
+          "date": "2026-09-08",
+          "value": 24
+        }
+      ]
+    },
+    {
+      "id": "lab-tsh",
+      "code": "3016-3",
+      "name": "TSH (thyroid)",
+      "category": "thyroid",
+      "unit": "mIU/L",
+      "referenceLow": 0.4,
+      "referenceHigh": 4,
+      "referenceText": "0.4–4.0 mIU/L",
+      "status": "normal",
+      "plainLanguage": "Checks how your thyroid is working. Yours is normal, which makes the thyroid an unlikely cause of your tiredness.",
+      "observations": [
+        {
+          "date": "2025-09-08",
+          "value": 1.8
+        },
+        {
+          "date": "2026-03-10",
+          "value": 2
+        },
+        {
+          "date": "2026-09-08",
+          "value": 1.9
+        }
+      ]
+    },
+    {
+      "id": "lab-ferritin",
+      "code": "2276-4",
+      "name": "Ferritin (iron stores)",
+      "category": "iron",
+      "unit": "ng/mL",
+      "referenceLow": 30,
+      "referenceHigh": 150,
+      "referenceText": "30–150 ng/mL",
+      "status": "normal",
+      "plainLanguage": "Shows how much iron your body has stored. Yours is normal, so low iron is unlikely to explain your tiredness.",
+      "observations": [
+        {
+          "date": "2025-09-08",
+          "value": 74
+        },
+        {
+          "date": "2026-03-10",
+          "value": 68
+        },
+        {
+          "date": "2026-09-08",
+          "value": 62
+        }
+      ]
+    }
+  ],
+  "wearables": {
+    "device": "Smart ring + phone",
+    "days": [
+      {
+        "date": "2026-08-14",
+        "sleepHours": 6.9,
+        "hrvMs": 48,
+        "restingHr": 61,
+        "steps": 8910
+      },
+      {
+        "date": "2026-08-15",
+        "sleepHours": 7.3,
+        "hrvMs": 45,
+        "restingHr": 61,
+        "steps": 5910
+      },
+      {
+        "date": "2026-08-16",
+        "sleepHours": 7.7,
+        "hrvMs": 47,
+        "restingHr": 61,
+        "steps": 6370
+      },
+      {
+        "date": "2026-08-17",
+        "sleepHours": 7.3,
+        "hrvMs": 48,
+        "restingHr": 60,
+        "steps": 8660
+      },
+      {
+        "date": "2026-08-18",
+        "sleepHours": 7.4,
+        "hrvMs": 45,
+        "restingHr": 60,
+        "steps": 7670
+      },
+      {
+        "date": "2026-08-19",
+        "sleepHours": 7.1,
+        "hrvMs": 48,
+        "restingHr": 61,
+        "steps": 7790
+      },
+      {
+        "date": "2026-08-20",
+        "sleepHours": 7.1,
+        "hrvMs": 47,
+        "restingHr": 61,
+        "steps": 7310
+      },
+      {
+        "date": "2026-08-21",
+        "sleepHours": 7.2,
+        "hrvMs": 46,
+        "restingHr": 61,
+        "steps": 7380
+      },
+      {
+        "date": "2026-08-22",
+        "sleepHours": 7.6,
+        "hrvMs": 48,
+        "restingHr": 61,
+        "steps": 6260
+      },
+      {
+        "date": "2026-08-23",
+        "sleepHours": 7.8,
+        "hrvMs": 48,
+        "restingHr": 60,
+        "steps": 7000
+      },
+      {
+        "date": "2026-08-24",
+        "sleepHours": 7.3,
+        "hrvMs": 46,
+        "restingHr": 61,
+        "steps": 7480
+      },
+      {
+        "date": "2026-08-25",
+        "sleepHours": 7.3,
+        "hrvMs": 47,
+        "restingHr": 61,
+        "steps": 8660
+      },
+      {
+        "date": "2026-08-26",
+        "sleepHours": 6.7,
+        "hrvMs": 46,
+        "restingHr": 61,
+        "steps": 7620
+      },
+      {
+        "date": "2026-08-27",
+        "sleepHours": 7.1,
+        "hrvMs": 46,
+        "restingHr": 61,
+        "steps": 7240
+      },
+      {
+        "date": "2026-08-28",
+        "sleepHours": 6.6,
+        "hrvMs": 45,
+        "restingHr": 62,
+        "steps": 6230
+      },
+      {
+        "date": "2026-08-29",
+        "sleepHours": 6.8,
+        "hrvMs": 44,
+        "restingHr": 62,
+        "steps": 7110
+      },
+      {
+        "date": "2026-08-30",
+        "sleepHours": 6.8,
+        "hrvMs": 44,
+        "restingHr": 63,
+        "steps": 5730
+      },
+      {
+        "date": "2026-08-31",
+        "sleepHours": 6.8,
+        "hrvMs": 43,
+        "restingHr": 62,
+        "steps": 7640
+      },
+      {
+        "date": "2026-09-01",
+        "sleepHours": 6.7,
+        "hrvMs": 42,
+        "restingHr": 63,
+        "steps": 7230
+      },
+      {
+        "date": "2026-09-02",
+        "sleepHours": 6.4,
+        "hrvMs": 44,
+        "restingHr": 64,
+        "steps": 6590
+      },
+      {
+        "date": "2026-09-03",
+        "sleepHours": 6.7,
+        "hrvMs": 42,
+        "restingHr": 65,
+        "steps": 5950
+      },
+      {
+        "date": "2026-09-04",
+        "sleepHours": 6.3,
+        "hrvMs": 40,
+        "restingHr": 64,
+        "steps": 5720
+      },
+      {
+        "date": "2026-09-05",
+        "sleepHours": 6.3,
+        "hrvMs": 43,
+        "restingHr": 65,
+        "steps": 4370
+      },
+      {
+        "date": "2026-09-06",
+        "sleepHours": 6.5,
+        "hrvMs": 41,
+        "restingHr": 65,
+        "steps": 4400
+      },
+      {
+        "date": "2026-09-07",
+        "sleepHours": 6.3,
+        "hrvMs": 39,
+        "restingHr": 65,
+        "steps": 6330
+      },
+      {
+        "date": "2026-09-08",
+        "sleepHours": 5.9,
+        "hrvMs": 41,
+        "restingHr": 67,
+        "steps": 7400
+      },
+      {
+        "date": "2026-09-09",
+        "sleepHours": 5.7,
+        "hrvMs": 38,
+        "restingHr": 66,
+        "steps": 6400
+      },
+      {
+        "date": "2026-09-10",
+        "sleepHours": 5.9,
+        "hrvMs": 40,
+        "restingHr": 67,
+        "steps": 6180
+      },
+      {
+        "date": "2026-09-11",
+        "sleepHours": 5.5,
+        "hrvMs": 40,
+        "restingHr": 66,
+        "steps": 5530
+      },
+      {
+        "date": "2026-09-12",
+        "sleepHours": 5.8,
+        "hrvMs": 38,
+        "restingHr": 68,
+        "steps": 4410
+      }
+    ]
+  },
+  "genetics": [
+    {
+      "id": "gen-tcf7l2",
+      "gene": "TCF7L2",
+      "variant": "rs7903146",
+      "genotype": "C/T",
+      "finding": "Moderately higher risk of type 2 diabetes",
+      "effect": "increased",
+      "plainLanguage": "You carry one copy of a common variant linked to a moderately higher chance of developing type 2 diabetes. It doesn't mean you will get it — sleep, activity and diet have a much bigger effect than this gene."
+    },
+    {
+      "id": "gen-fto",
+      "gene": "FTO",
+      "variant": "rs9939609",
+      "genotype": "A/T",
+      "finding": "Slightly higher tendency to gain weight",
+      "effect": "increased",
+      "plainLanguage": "One copy of a variant associated with a small increase in appetite and weight gain. Regular physical activity has been shown to largely offset this effect."
+    },
+    {
+      "id": "gen-apoe",
+      "gene": "APOE",
+      "variant": "rs429358 / rs7412",
+      "genotype": "ε3/ε3",
+      "finding": "Most common type — typical risk",
+      "effect": "typical",
+      "plainLanguage": "You have the most common version of this gene, which is linked to average heart and brain-health risk."
+    }
+  ],
+  "diary": [
+    {
+      "id": "diary-2026-09-11",
+      "date": "2026-09-11",
+      "energy": 1,
+      "sleepQuality": 1,
+      "mood": 1,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [],
+      "note": "Tired but a calmer day. Went to bed earlier.",
+      "createdAt": "2026-09-11T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-10",
+      "date": "2026-09-10",
+      "energy": 2,
+      "sleepQuality": 2,
+      "mood": 3,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-09-10T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-09",
+      "date": "2026-09-09",
+      "energy": 2,
+      "sleepQuality": 2,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        },
+        {
+          "name": "Joint pain",
+          "severity": "mild"
+        }
+      ],
+      "lifestyle": [
+        "Stressful day"
+      ],
+      "note": "Stiff and achy, a bit run down. Stressful week.",
+      "createdAt": "2026-09-09T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-08",
+      "date": "2026-09-08",
+      "energy": 3,
+      "sleepQuality": 2,
+      "mood": 3,
+      "symptoms": [],
+      "lifestyle": [
+        "Late caffeine"
+      ],
+      "note": "Blood test this morning. Tired most of the day.",
+      "createdAt": "2026-09-08T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-07",
+      "date": "2026-09-07",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 3,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "mild"
+        },
+        {
+          "name": "Brain fog",
+          "severity": "mild"
+        }
+      ],
+      "lifestyle": [
+        "Late caffeine"
+      ],
+      "note": "",
+      "createdAt": "2026-09-07T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-06",
+      "date": "2026-09-06",
+      "energy": 2,
+      "sleepQuality": 3,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [],
+      "note": "Slept 5.5 hours. Exhausted by lunchtime.",
+      "createdAt": "2026-09-06T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-05",
+      "date": "2026-09-05",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-09-05T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-04",
+      "date": "2026-09-04",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 3,
+      "symptoms": [],
+      "lifestyle": [
+        "Exercise"
+      ],
+      "note": "Walked to the office, felt a bit better.",
+      "createdAt": "2026-09-04T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-03",
+      "date": "2026-09-03",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 3,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-09-03T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-02",
+      "date": "2026-09-02",
+      "energy": 2,
+      "sleepQuality": 3,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [],
+      "note": "Fourth day in a row with an afternoon energy dip.",
+      "createdAt": "2026-09-02T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-09-01",
+      "date": "2026-09-01",
+      "energy": 2,
+      "sleepQuality": 3,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [],
+      "note": "Tired after lunch, felt heavy until the evening.",
+      "createdAt": "2026-09-01T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-31",
+      "date": "2026-08-31",
+      "energy": 2,
+      "sleepQuality": 3,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        },
+        {
+          "name": "Brain fog",
+          "severity": "mild"
+        }
+      ],
+      "lifestyle": [
+        "Stressful day"
+      ],
+      "note": "Afternoon slump again after lunch. Hard to focus in meetings.",
+      "createdAt": "2026-08-31T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-30",
+      "date": "2026-08-30",
+      "energy": 2,
+      "sleepQuality": 3,
+      "mood": 2,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "moderate"
+        }
+      ],
+      "lifestyle": [
+        "Late caffeine"
+      ],
+      "note": "Low energy after lunch, needed a second coffee.",
+      "createdAt": "2026-08-30T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-28",
+      "date": "2026-08-28",
+      "energy": 4,
+      "sleepQuality": 3,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-28T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-27",
+      "date": "2026-08-27",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 5,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-27T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-26",
+      "date": "2026-08-26",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 3,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "mild"
+        }
+      ],
+      "lifestyle": [
+        "Late caffeine"
+      ],
+      "note": "",
+      "createdAt": "2026-08-26T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-24",
+      "date": "2026-08-24",
+      "energy": 5,
+      "sleepQuality": 4,
+      "mood": 5,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "Woke up at 4am and couldn't fall back asleep.",
+      "createdAt": "2026-08-24T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-23",
+      "date": "2026-08-23",
+      "energy": 5,
+      "sleepQuality": 5,
+      "mood": 5,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-23T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-22",
+      "date": "2026-08-22",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-22T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-21",
+      "date": "2026-08-21",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [
+        "Alcohol"
+      ],
+      "note": "Late dinner and a glass of wine, slept badly.",
+      "createdAt": "2026-08-21T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-19",
+      "date": "2026-08-19",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-19T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-18",
+      "date": "2026-08-18",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-18T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-17",
+      "date": "2026-08-17",
+      "energy": 5,
+      "sleepQuality": 4,
+      "mood": 5,
+      "symptoms": [],
+      "lifestyle": [
+        "Stressful day"
+      ],
+      "note": "Busy week at work, skipped my evening walk.",
+      "createdAt": "2026-08-17T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-16",
+      "date": "2026-08-16",
+      "energy": 5,
+      "sleepQuality": 4,
+      "mood": 5,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-16T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-15",
+      "date": "2026-08-15",
+      "energy": 4,
+      "sleepQuality": 4,
+      "mood": 4,
+      "symptoms": [],
+      "lifestyle": [],
+      "note": "",
+      "createdAt": "2026-08-15T19:15:00.000Z"
+    },
+    {
+      "id": "diary-2026-08-14",
+      "date": "2026-08-14",
+      "energy": 3,
+      "sleepQuality": 3,
+      "mood": 3,
+      "symptoms": [
+        {
+          "name": "Fatigue",
+          "severity": "mild"
+        }
+      ],
+      "lifestyle": [
+        "Exercise"
+      ],
+      "note": "Good day — yoga class in the morning, felt energetic.",
+      "createdAt": "2026-08-14T19:15:00.000Z"
+    }
+  ],
+  "summaries": [
+    {
+      "id": "sum-checkins-review",
+      "title": "Your check-ins, sleep and recent blood test",
+      "status": "in_review",
+      "createdAt": "2026-09-11T06:46:14.469Z",
+      "approvedAt": null,
+      "approvedByClinicianId": null,
+      "readAt": null,
+      "body": {
+        "whatWeSee": "Over the last few weeks you logged tiredness after lunch on several days, and your sleep has dropped from about 7.3 to 5.9 hours a night. Your heart rate variability — a sign of how well your body recovers — has gone down too. Your latest blood test shows fasting glucose at 108 mg/dL and hs-CRP (an inflammation marker) at 3.1 mg/L, both slightly above the usual range, and your vitamin D is low at 24 ng/mL. Your thyroid and iron results are normal.",
+        "whatItMeans": "Your recent check-ins, sleep data, and bloodwork suggest it would be useful to discuss sleep quality, recovery, glucose markers, and inflammation with your clinician. This is not a diagnosis. Short sleep can raise blood sugar and inflammation by itself, so improving sleep may help both your energy and your results. We'd like to look at sleep, stress and your blood sugar together at your appointment.",
+        "nextSteps": [
+          "Aim for 7 or more hours in bed: a fixed bedtime, and no caffeine after 2pm.",
+          "Add a 20–30 minute walk on most days, ideally after lunch — when your energy dips.",
+          "Keep logging your check-ins, so we can see what helps.",
+          "At your appointment we'll decide whether to repeat the glucose test together with HbA1c."
+        ],
+        "questionsForVisit": [
+          "Should I repeat my blood sugar test, and add HbA1c?",
+          "Could my sleep or stress explain the higher inflammation marker?",
+          "Should I take vitamin D, and how much?"
+        ],
+        "sources": [
+          {
+            "id": "src-glucose",
+            "kind": "patient_data",
+            "title": "Fasting glucose blood test",
+            "detail": "108 mg/dL on 8 Sept",
+            "date": "2026-09-08"
+          },
+          {
+            "id": "src-crp",
+            "kind": "patient_data",
+            "title": "hs-CRP blood test",
+            "detail": "3.1 mg/L on 8 Sept",
+            "date": "2026-09-08"
+          },
+          {
+            "id": "src-sleep",
+            "kind": "patient_data",
+            "title": "Wearable sleep data",
+            "detail": "30-day trend from your smart ring"
+          },
+          {
+            "id": "src-diary",
+            "kind": "patient_data",
+            "title": "Your check-ins",
+            "detail": "Afternoon tiredness on several days"
+          },
+          {
+            "id": "res-sleep-1999",
+            "kind": "research",
+            "title": "Impact of sleep debt on metabolic and endocrine function (The Lancet, 1999)",
+            "detail": "Short sleep reduced glucose tolerance in healthy young adults within a week.",
+            "url": "https://doi.org/10.1016/S0140-6736(99)01376-8"
+          },
+          {
+            "id": "res-ada-2024",
+            "kind": "research",
+            "title": "Diagnosis and Classification of Diabetes: Standards of Care 2024 (Diabetes Care)",
+            "detail": "Fasting glucose of 100–125 mg/dL is defined as impaired fasting glucose (prediabetes range).",
+            "url": "https://doi.org/10.2337/dc24-S002"
+          },
+          {
+            "id": "res-hrv-2017",
+            "kind": "research",
+            "title": "An Overview of Heart Rate Variability Metrics and Norms (Frontiers in Public Health, 2017)",
+            "detail": "HRV reflects recovery and stress load; it falls with poor sleep, stress and illness.",
+            "url": "https://doi.org/10.3389/fpubh.2017.00258"
+          },
+          {
+            "id": "src-clin",
+            "kind": "clinician",
+            "title": "Reviewed by Dr. Eriksson",
+            "detail": "Edited and approved for you"
+          }
+        ]
+      }
+    },
+    {
+      "id": "sum-spring-checkup",
+      "title": "Results from your spring check-up",
+      "status": "approved",
+      "createdAt": "2026-03-12T07:46:14.469Z",
+      "approvedAt": "2026-03-14T10:05:00.000Z",
+      "approvedByClinicianId": "clin-eriksson",
+      "readAt": "2026-03-16T07:46:14.469Z",
+      "body": {
+        "whatWeSee": "Your fasting glucose was 101 mg/dL, just above the typical range, and hs-CRP was 1.9 mg/L. Vitamin D was 27 ng/mL, slightly low. Thyroid and iron were normal.",
+        "whatItMeans": "These results are an early signal worth watching, not a diagnosis. Small, steady changes to activity and sleep make the biggest difference at this stage.",
+        "nextSteps": [
+          "Try to walk 8,000 steps a day.",
+          "Repeat blood test in about 6 months."
+        ],
+        "questionsForVisit": [],
+        "sources": [
+          {
+            "id": "src-glucose-old",
+            "kind": "patient_data",
+            "title": "Fasting glucose blood test",
+            "detail": "101 mg/dL"
+          },
+          {
+            "id": "res-ada-2024",
+            "kind": "research",
+            "title": "Diagnosis and Classification of Diabetes: Standards of Care 2024 (Diabetes Care)",
+            "detail": "Fasting glucose of 100–125 mg/dL is defined as impaired fasting glucose (prediabetes range).",
+            "url": "https://doi.org/10.2337/dc24-S002"
+          },
+          {
+            "id": "src-clin-old",
+            "kind": "clinician",
+            "title": "Reviewed by Dr. Eriksson"
+          }
+        ]
+      }
+    }
+  ],
+  "appointmentQuestions": [
+    {
+      "id": "q-seed-1",
+      "text": "Why am I so tired in the afternoons?",
+      "origin": "patient",
+      "createdAt": "2026-09-08T06:46:14.469Z"
+    }
+  ],
+  "research": [
+    {
+      "id": "res-ada-2024",
+      "kind": "research",
+      "title": "Diagnosis and Classification of Diabetes: Standards of Care 2024 (Diabetes Care)",
+      "detail": "Fasting glucose of 100–125 mg/dL is defined as impaired fasting glucose (prediabetes range).",
+      "url": "https://doi.org/10.2337/dc24-S002"
+    },
+    {
+      "id": "res-dpp-2002",
+      "kind": "research",
+      "title": "Reduction in the Incidence of Type 2 Diabetes with Lifestyle Intervention or Metformin (NEJM, 2002)",
+      "detail": "Lifestyle changes (activity, modest weight loss) cut progression to diabetes by 58 %.",
+      "url": "https://doi.org/10.1056/NEJMoa012512"
+    },
+    {
+      "id": "res-sleep-1999",
+      "kind": "research",
+      "title": "Impact of sleep debt on metabolic and endocrine function (The Lancet, 1999)",
+      "detail": "Short sleep reduced glucose tolerance in healthy young adults within a week.",
+      "url": "https://doi.org/10.1016/S0140-6736(99)01376-8"
+    },
+    {
+      "id": "res-hrv-2017",
+      "kind": "research",
+      "title": "An Overview of Heart Rate Variability Metrics and Norms (Frontiers in Public Health, 2017)",
+      "detail": "HRV reflects recovery and stress load; it falls with poor sleep, stress and illness.",
+      "url": "https://doi.org/10.3389/fpubh.2017.00258"
+    },
+    {
+      "id": "res-tcf7l2-2006",
+      "kind": "research",
+      "title": "Variant of transcription factor 7-like 2 (TCF7L2) gene confers risk of type 2 diabetes (Nature Genetics, 2006)",
+      "detail": "The rs7903146 T allele is linked to a moderately higher risk of type 2 diabetes.",
+      "url": "https://doi.org/10.1038/ng1732"
+    },
+    {
+      "id": "res-vitd-2007",
+      "kind": "research",
+      "title": "Vitamin D Deficiency (NEJM, 2007)",
+      "detail": "Low vitamin D is common and can be associated with tiredness and muscle weakness.",
+      "url": "https://doi.org/10.1056/NEJMra070553"
+    }
+  ]
+}

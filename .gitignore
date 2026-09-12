@@ -48,3 +48,11 @@ next-env.d.ts
 
 # typescript incremental build cache
 *.tsbuildinfo
+
+# python (backend, scripts)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+# local postgres data dir used for testing
+/pgdata/

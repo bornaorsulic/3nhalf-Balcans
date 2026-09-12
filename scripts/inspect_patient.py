@@ -1,65 +1,17 @@
-import psycopg
-from getpass import getpass
+"""Print one patient's stored data, the way the API returns it.
 
+    python3 scripts/inspect_patient.py            # the demo patient
+    python3 scripts/inspect_patient.py P001
+"""
 
-password = getpass("Enter your PostgreSQL password: ")
+from __future__ import annotations
 
+import runpy
+import sys
+from pathlib import Path
 
-connection = psycopg.connect(
-    dbname="health_agent",
-    user="postgres",
-    password=password,
-    host="localhost",
-    port=5432
-)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-
-with connection.cursor() as cursor:
-
-    cursor.execute("""
-        SELECT id, name, age, sex
-        FROM patients;
-    """)
-
-    patients = cursor.fetchall()
-
-    print("\nPATIENTS")
-    print("--------")
-
-    for patient in patients:
-        print(patient)
-
-
-    cursor.execute("""
-        SELECT date, biomarker, value, unit
-        FROM labs
-        WHERE patient_id = 'P001'
-        ORDER BY date;
-    """)
-
-    labs = cursor.fetchall()
-
-    print("\nLABS")
-    print("----")
-
-    for lab in labs:
-        print(lab)
-
-
-    cursor.execute("""
-        SELECT date, sleep_hours, hrv
-        FROM wearable_data
-        WHERE patient_id = 'P001'
-        ORDER BY date;
-    """)
-
-    wearables = cursor.fetchall()
-
-    print("\nWEARABLES")
-    print("---------")
-
-    for wearable in wearables:
-        print(wearable)
-
-
-connection.close()
+# backend/retrieval.py prints the full patient context when run directly.
+if __name__ == "__main__":
+    runpy.run_path(str(Path(__file__).resolve().parent.parent / "backend" / "retrieval.py"), run_name="__main__")

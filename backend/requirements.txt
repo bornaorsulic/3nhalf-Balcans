@@ -1,0 +1,6 @@
+# Backend and database scripts (Python 3.10+).
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -r backend/requirements.txt
+psycopg[binary]>=3.2
+fastapi>=0.115
+uvicorn[standard]>=0.30

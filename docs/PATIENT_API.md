@@ -1,7 +1,10 @@
 # Patient app API contract
 
 For Person 1 (AI / backend) and Person 2 (data / RAG). The patient view (`/patient`) runs on the
-shared demo data until the backend implements these endpoints; then set `NEXT_PUBLIC_API_MODE=http`.
+shared demo data by default; set `NEXT_PUBLIC_API_MODE=http` to run it against the backend.
+
+**These endpoints are implemented** by [`backend/api.py`](../backend/api.py) on top of PostgreSQL —
+see [docs/DATABASE.md](DATABASE.md) for setup. Swagger UI: `http://localhost:8000/docs`.
 
 **Source of truth for every shape: [`lib/patient-api/types.ts`](../lib/patient-api/types.ts).** The mock
 implementation ([`lib/patient-api/mock/`](../lib/patient-api/mock), reading [`lib/demo/`](../lib/demo)) returns the same shapes, so it doubles as
@@ -27,6 +30,8 @@ example data.
 | GET | `/patients/{id}/appointment-questions` | – | `AppointmentQuestion[]` |
 | POST | `/patients/{id}/appointment-questions` | `{ text, origin }` | `AppointmentQuestion` |
 | DELETE | `/patients/{id}/appointment-questions/{questionId}` | – | `204` |
+| POST | `/patients/{id}/summaries/{summaryId}/approve` | `{ clinicianId? }` | `PatientSummary` |
+| GET | `/research?q=&limit=` | – | `Source[]` (research evidence) |
 
 ## Chat: what the app expects from the Health Agent
 
@@ -57,6 +62,9 @@ question) and returns one `AgentReply`:
 - `questionForClinician`: optional. If set, the app offers "Add to my appointment questions".
 - Rules the mock follows and the real agent should too: no diagnosis, no prescribing or dosing,
   plain language, defer decisions to the clinician.
+
+The backend's stand-in lives in [`backend/agent.py`](../backend/agent.py) and answers from the
+patient's own database rows. Person 1 replaces `answer()` with the Nebius call and keeps this shape.
 
 ## Summaries: clinician in the loop
 
