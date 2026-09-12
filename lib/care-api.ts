@@ -39,6 +39,8 @@ export interface CareConnection {
   respondedAt: string | null;
   endedAt: string | null;
   unreadMessages: number;
+  /** Drafts on this patient still waiting for a clinician. Clinician view only. */
+  summariesToReview?: number;
   clinician?: Doctor;
   patient?: { id: string; name: string; firstName: string; lastName: string };
 }
@@ -249,6 +251,13 @@ export const createSummary = (patientId: string, draft: SummaryDraft) =>
     method: "POST",
     body: JSON.stringify(draft),
   });
+
+/** Send a draft back to be rewritten. The note never reaches the patient. */
+export const requestSummaryChanges = (patientId: string, summaryId: string, note: string) =>
+  apiJson<{ id: string; status: string; reviewNote: string }>(
+    `/patients/${patientId}/summaries/${summaryId}/request-changes`,
+    { method: "POST", body: JSON.stringify({ note }) },
+  );
 
 export const approveSummary = (patientId: string, summaryId: string) =>
   apiJson<unknown>(`/patients/${patientId}/summaries/${summaryId}/approve`, { method: "POST" });

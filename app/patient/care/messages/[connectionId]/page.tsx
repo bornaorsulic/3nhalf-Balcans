@@ -10,6 +10,7 @@ import { SpeakButton, VoiceNotePlayer, VoiceRecorder } from "@/components/voice-
 import { transcribeVoice } from "@/lib/voice";
 import { markThreadRead, sendMessage, useConnections, useMessages } from "@/lib/care-api";
 import { formatDay, formatTime } from "@/lib/dates";
+import { takeStagedQuestion } from "@/lib/ask-clinician";
 
 export default function ThreadPage() {
   const { connectionId } = useParams<{ connectionId: string }>();
@@ -20,6 +21,15 @@ export default function ThreadPage() {
   const endRef = useRef<HTMLDivElement>(null);
 
   const thread = connections?.find((c) => c.id === connectionId);
+
+  // A question handed over from the Health Agent chat arrives through sessionStorage,
+  // which only exists in the browser — hence an effect rather than lazy state, which
+  // would not match what the server rendered.
+  useEffect(() => {
+    const staged = takeStagedQuestion();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- sessionStorage is browser-only
+    if (staged) setDraft(staged);
+  }, []);
 
   // Opening the thread clears its unread badge.
   useEffect(() => {

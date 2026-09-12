@@ -3,6 +3,7 @@
 import Link from "@/components/plain-link";
 import { useState, type FormEvent } from "react";
 import {
+  ClipboardCheck,
   ArrowRight,
   CalendarDays,
   Check,
@@ -43,6 +44,7 @@ export function ConnectedRoster() {
   const incoming = connections?.filter((c) => c.status === "pending" && c.initiatedBy === "patient") ?? [];
   const invited = connections?.filter((c) => c.status === "pending" && c.initiatedBy === "clinician") ?? [];
   const unread = accepted.reduce((total, c) => total + c.unreadMessages, 0);
+  const toReview = accepted.reduce((total, c) => total + (c.summariesToReview ?? 0), 0);
 
   async function respond(connectionId: string, accept: boolean) {
     setBusy(true);
@@ -118,6 +120,7 @@ export function ConnectedRoster() {
           <StatTile label="Your patients" value={accepted.length} icon={<Users className="size-4 text-primary" />} />
           <StatTile label="Requests waiting" value={incoming.length} icon={<Inbox className="size-4 text-primary" />} />
           <StatTile label="Unread messages" value={unread} icon={<Mail className="size-4 text-primary" />} />
+          <StatTile label="Summaries to review" value={toReview} icon={<ClipboardCheck className="size-4 text-primary" />} />
         </section>
 
         {incoming.length > 0 && (
@@ -176,6 +179,12 @@ export function ConnectedRoster() {
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-base font-semibold">{connection.patient?.name}</p>
+                      {(connection.summariesToReview ?? 0) > 0 && (
+                        <Badge variant="secondary" className="gap-1">
+                          <ClipboardCheck className="size-3" />
+                          {connection.summariesToReview} to review
+                        </Badge>
+                      )}
                       {connection.unreadMessages > 0 && (
                         <Badge className="gap-1">
                           <Mail className="size-3" />

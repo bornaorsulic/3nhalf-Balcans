@@ -7,7 +7,7 @@ import { RangeBar } from "@/components/patient/charts/range-bar";
 import { TrendChart } from "@/components/patient/charts/trend-chart";
 import { PageHeader } from "@/components/patient/page-header";
 import { Card, Delta, ErrorState, LoadingCards, SectionTitle, StatusPill, cx, type Tone } from "@/components/patient/ui";
-import { useGenetics, useLabs, useWearables } from "@/lib/patient-api/hooks";
+import { useDiary, useGenetics, useLabs, useWearables } from "@/lib/patient-api/hooks";
 import type { LabResult, LabStatus } from "@/lib/patient-api/types";
 import { formatLongDate, formatShortDate } from "@/lib/dates";
 import { METRICS, weeklyChange, type WearableMetric } from "@/lib/insights";
@@ -85,6 +85,14 @@ const WEARABLE_COPY: Record<WearableMetric, { title: string; explain: string }> 
 
 function WearablesPanel() {
   const { data, error, mutate } = useWearables(30);
+  const { data: diary } = useDiary();
+
+  // Days the patient logged a symptom, drawn under the same timeline as the wearable
+  // trend — so "the tired days are the short-sleep days" is visible rather than argued.
+  const symptomDays = (diary ?? [])
+    .filter((entry) => (entry.symptoms?.length ?? 0) > 0)
+    .map((entry) => ({ date: entry.date, label: entry.symptoms.map((symptom) => symptom.name).join(", ") }));
+
   if (error) return <ErrorState onRetry={() => mutate()} />;
   if (!data) return <LoadingCards count={3} />;
   if (data.days.length === 0) {
@@ -122,6 +130,7 @@ function WearablesPanel() {
                 format={m.format}
                 band={metric === "sleepHours" ? { low: 7, high: 9 } : undefined}
                 area={metric !== "sleepHours"}
+                markers={symptomDays}
               />
             </div>
             <p className="mt-2 text-sm text-ink-secondary">{WEARABLE_COPY[metric].explain}</p>

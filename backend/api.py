@@ -212,6 +212,10 @@ class RuleBody(BaseModel):
     location: str = ""
 
 
+class ReviewNoteBody(BaseModel):
+    note: str
+
+
 class SummaryEditBody(BaseModel):
     whatWeSee: str
     whatItMeans: str
@@ -669,6 +673,24 @@ def edit_summary(
 def mark_read(patient_id: str, summary_id: str, user: dict = Depends(current_patient)) -> Response:
     retrieval.mark_summary_read(resolve_patient(patient_id, user), summary_id)
     return Response(status_code=204)
+
+
+@app.post(PREFIX + "/patients/{patient_id}/summaries/{summary_id}/request-changes")
+def request_summary_changes(
+    patient_id: str,
+    summary_id: str,
+    body: ReviewNoteBody,
+    user: dict = Depends(current_clinician),
+) -> dict:
+    """Send a draft back with a reason instead of approving it."""
+    pid = resolve_patient(patient_id, user)
+    try:
+        result = summary_edits.request_changes(summary_id, clinician_id=user["clinician_id"], note=body.note)
+    except summary_edits.SummaryError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    audit.log("requested_summary_changes", actor=user, patient_id=pid, subject_id=summary_id, detail=body.note[:200])
+    return result
 
 
 @app.post(PREFIX + "/patients/{patient_id}/summaries/{summary_id}/approve")

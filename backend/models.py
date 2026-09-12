@@ -140,10 +140,15 @@ def summary(row: dict, sources: list[dict], approved_by: dict | None, include_dr
     """
     result: dict[str, Any] = {
         "id": row["id"],
+        # A patient sees "in_review" for anything not approved: whether a colleague
+        # sent the draft back is the care team's business, not theirs.
+        "status": row["status"] if include_draft_body else ("approved" if row["status"] == "approved" else "in_review"),
         "title": row["title"],
-        "status": row["status"],
         "createdAt": iso_time(row["created_at"]),
     }
+    if include_draft_body and row.get("review_note"):
+        result["reviewNote"] = row["review_note"]
+        result["reviewedAt"] = iso_time(row.get("reviewed_at"))
     if row.get("approved_at"):
         result["approvedAt"] = iso_time(row["approved_at"])
     if approved_by:

@@ -158,11 +158,15 @@ export interface AgentReply {
 export interface PatientSummary {
   id: string;
   title: string;
-  status: "approved" | "in_review";
+  /** `changes_requested` is clinician-only: a patient sees any unapproved draft as in_review. */
+  status: "approved" | "in_review" | "changes_requested";
   createdAt: string;
   approvedAt?: string;
   approvedBy?: Clinician;
   readAt?: string;
+  /** Why a reviewer sent it back. Clinician view only — never sent to the patient app. */
+  reviewNote?: string;
+  reviewedAt?: string;
   /** Present only when approved: patients never see unapproved AI output. */
   body?: {
     whatWeSee: string;

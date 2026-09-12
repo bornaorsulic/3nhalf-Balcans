@@ -2,17 +2,19 @@
 
 import { Suspense, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Check, Plus, RotateCcw, SendHorizonal, Sparkles } from "lucide-react";
+import { Check, MessageCircle, Plus, RotateCcw, SendHorizonal, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/patient/page-header";
 import { RichText } from "@/components/patient/rich-text";
 import { SafetyBanner } from "@/components/patient/safety-banner";
 import { SourceList } from "@/components/patient/source-list";
-import { Chip, cx } from "@/components/patient/ui";
+import { Chip, StatusPill, cx } from "@/components/patient/ui";
 import { SpeakButton, VoiceRecorder } from "@/components/voice-controls";
 import { getApi } from "@/lib/patient-api";
 import { useAppointmentQuestions } from "@/lib/patient-api/hooks";
 import type { AgentReply, ChatTurn } from "@/lib/patient-api/types";
 import { checkForUrgentSymptoms } from "@/lib/safety";
+import { stageQuestionForClinician } from "@/lib/ask-clinician";
+import { useConnections } from "@/lib/care-api";
 import { transcribeVoice } from "@/lib/voice";
 import { useIsClient } from "@/hooks/use-is-client";
 
@@ -22,6 +24,8 @@ interface Message {
   content: string;
   reply?: AgentReply;
   failed?: boolean;
+  /** On an assistant message: the question that produced it, for escalation. */
+  question?: string;
 }
 
 const HISTORY_KEY = "patient-mobile:chat";
@@ -75,7 +79,7 @@ function Chat() {
     try {
       const turns: ChatTurn[] = next.map((m) => ({ role: m.role, content: m.content }));
       const reply = await getApi().sendChat({ messages: turns });
-      setMessages((prev) => [...prev, { id: reply.id, role: "assistant", content: reply.content, reply }]);
+      setMessages((prev) => [...prev, { id: reply.id, role: "assistant", content: reply.content, reply, question: content }]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -260,10 +264,7 @@ function AssistantBubble({
           <>
             {reply.questionForClinician && <AddQuestionButton text={reply.questionForClinician} />}
             <SourceList sources={reply.sources} />
-            <p className="mt-2 text-[11px] text-ink-muted">
-              Confidence: {reply.confidence}
-              {reply.sources.length === 0 && " · general information"}
-            </p>
+            <AnswerFooter reply={reply} question={message.question ?? ""} />
           </>
         )}
       </div>
@@ -275,6 +276,43 @@ function AssistantBubble({
             </Chip>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+/*
+ * Every answer says what it rests on and how confident it is — and offers a human.
+ * An unsourced answer must never look like a sourced one.
+ */
+function AnswerFooter({ reply, question }: { reply: AgentReply; question: string }) {
+  const { data: connections } = useConnections();
+  const thread = connections?.find((connection) => connection.status === "accepted");
+  const grounded = reply.sources.length > 0;
+  const tone = reply.confidence === "high" ? "good" : reply.confidence === "moderate" ? "neutral" : "warning";
+
+  return (
+    <div className="mt-3 border-t border-line pt-2.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <StatusPill tone={tone}>Confidence: {reply.confidence}</StatusPill>
+        <span className="text-[11px] text-ink-muted">
+          {grounded
+            ? `Based on ${reply.sources.length} ${reply.sources.length === 1 ? "source" : "sources"} from your record and research`
+            : "General information — not based on your own results"}
+        </span>
+      </div>
+      {thread && (
+        <button
+          type="button"
+          onClick={() => {
+            stageQuestionForClinician(question, reply.content);
+            window.location.assign(`/patient/care/messages/${thread.id}`);
+          }}
+          className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-control px-2 text-sm font-semibold text-primary hover:bg-primary-soft/60"
+        >
+          <MessageCircle aria-hidden className="size-4" />
+          Ask my clinician about this
+        </button>
       )}
     </div>
   );

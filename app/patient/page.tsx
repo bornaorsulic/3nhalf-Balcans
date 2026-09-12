@@ -4,6 +4,7 @@ import Link from "@/components/plain-link";
 import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope, Watch } from "lucide-react";
 import { Sparkline } from "@/components/patient/charts/sparkline";
 import { Card, Delta, LinkCard, LoadingCards, SectionTitle, StatusPill } from "@/components/patient/ui";
+import { FirstSteps } from "@/components/patient/first-steps";
 import { useAppointmentQuestions, useDiary, useProfile, useSummaries, useWearables } from "@/lib/patient-api/hooks";
 import { formatDay, formatRelativeDay, formatTime, greetingFor, todayISO } from "@/lib/dates";
 import { METRICS, weeklyChange, type WearableMetric } from "@/lib/insights";
@@ -37,6 +38,8 @@ export default function HomePage() {
       ) : (
         <div className="h-14" />
       )}
+
+      <FirstSteps />
 
       <div className="mt-5 space-y-3">
         <CheckInCard />

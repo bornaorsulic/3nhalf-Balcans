@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   approveSummary,
   editSummary,
+  requestSummaryChanges,
   exportRecentResults,
   exportSummaryPdf,
   markThreadRead,
@@ -332,6 +333,8 @@ function SummaryCard({
   const approved = summary.status === "approved";
   const { data: versions, mutate: refreshVersions } = useSummaryVersions(patientId, summary.id);
   const [editing, setEditing] = useState(false);
+  const [sendBack, setSendBack] = useState<string | null>(null);
+  const [showOriginal, setShowOriginal] = useState(false);
   const [busy, setBusy] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -375,6 +378,21 @@ function SummaryCard({
     }
   }
 
+  async function requestChanges() {
+    if (!sendBack?.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await requestSummaryChanges(patientId, summary.id, sendBack);
+      setSendBack(null);
+      onChange();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Could not send it back");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function exportPdf() {
     setExportingPdf(true);
     setError(null);
@@ -398,9 +416,19 @@ function SummaryCard({
           </p>
         </div>
         <Badge variant={approved ? "default" : "secondary"}>
-          {approved ? "Sent to patient" : "Draft · not visible to patient"}
+          {approved ? "Sent to patient" : summary.status === "changes_requested" ? "Sent back · needs a rewrite" : "Draft · not visible to patient"}
         </Badge>
       </div>
+
+      {summary.reviewNote && !approved && (
+        <div className="mt-3 rounded-md border border-amber-500/30 bg-amber-500/10 p-3">
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            Changes requested{summary.reviewedAt ? ` · ${formatRelativeDay(summary.reviewedAt)}` : ""}
+          </p>
+          <p className="mt-1 text-sm">{summary.reviewNote}</p>
+          <p className="mt-1 text-xs text-muted-foreground">Only the care team sees this. The patient sees nothing until it is approved.</p>
+        </div>
+      )}
 
       {error && <p role="alert" className="mt-3 rounded-md bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
 
@@ -440,10 +468,37 @@ function SummaryCard({
           )}
           {!approved && <Button variant="secondary" onClick={() => setEditing(true)}>Edit</Button>}
           {!approved && (
+            <Button variant="ghost" onClick={() => setSendBack(sendBack === null ? "" : null)} disabled={busy}>
+              Request changes
+            </Button>
+          )}
+          {!approved && (
             <Button onClick={send} disabled={busy} className="gap-2">
               <CheckCircle2 className="size-4" /> Approve and send
             </Button>
           )}
+        </div>
+      )}
+
+      {sendBack !== null && !approved && (
+        <div className="mt-3 rounded-md border p-3">
+          <label htmlFor={`send-back-${summary.id}`} className="text-sm font-medium">
+            What needs to change?
+          </label>
+          <p className="mb-2 text-xs text-muted-foreground">
+            Stays with the care team — the patient never sees this, and the summary stays unapproved.
+          </p>
+          <Textarea
+            id={`send-back-${summary.id}`}
+            value={sendBack}
+            onChange={(event) => setSendBack(event.target.value)}
+            placeholder="Too technical in the second paragraph; rewrite the glucose section in plain language."
+            className="min-h-20"
+          />
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" onClick={requestChanges} disabled={busy || !sendBack.trim()}>Send back</Button>
+            <Button size="sm" variant="ghost" onClick={() => setSendBack(null)} disabled={busy}>Cancel</Button>
+          </div>
         </div>
       )}
 
@@ -453,6 +508,30 @@ function SummaryCard({
             <History className="size-4 text-primary" />
             <p className="text-sm font-semibold">Version trail</p>
           </div>
+          {versions.length > 1 && versions[0]?.source === "ai" && (
+            <div className="mb-3">
+              <Button variant="ghost" size="sm" onClick={() => setShowOriginal(!showOriginal)}>
+                {showOriginal ? "Hide the Health Agent's original" : "Compare with the Health Agent's original"}
+              </Button>
+              {showOriginal && (
+                <div className="mt-2 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-md border border-dashed p-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">v1 · Health Agent</p>
+                    <p className="text-sm leading-6 text-muted-foreground">{versions[0].whatWeSee}</p>
+                    <p className="mt-2 text-sm leading-6 text-muted-foreground">{versions[0].whatItMeans}</p>
+                  </div>
+                  <div className="rounded-md border p-3">
+                    <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-primary">
+                      v{versions[versions.length - 1].version} · now
+                    </p>
+                    <p className="text-sm leading-6">{summary.body?.whatWeSee}</p>
+                    <p className="mt-2 text-sm leading-6">{summary.body?.whatItMeans}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <ul className="space-y-1.5 text-xs text-muted-foreground">
             {versions.map((version) => (
               <li key={version.version} className="flex items-center gap-2">

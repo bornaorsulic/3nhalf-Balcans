@@ -20,6 +20,12 @@ interface TrendChartProps {
   band?: { low?: number; high?: number };
   height?: number;
   area?: boolean;
+  /**
+   * What the patient logged on a given day, drawn as a tick under the axis.
+   * Putting symptoms on the same timeline as sleep is the whole argument:
+   * the tired days and the short-sleep days line up, or they do not.
+   */
+  markers?: { date: string; label: string }[];
 }
 
 const M = { top: 14, right: 44, bottom: 22, left: 36 };
@@ -56,7 +62,7 @@ const plainNumber = (v: number) => v.toLocaleString("en-GB", { maximumFractionDi
  * Hover/touch shows a crosshair readout; arrow keys do the same for keyboard users;
  * "Show values" opens a table so no value depends on hovering.
  */
-export function TrendChart({ label, points, format, tickFormat = plainNumber, band, height = 150, area = true }: TrendChartProps) {
+export function TrendChart({ label, points, format, tickFormat = plainNumber, band, height = 150, area = true, markers }: TrendChartProps) {
   const [ref, width] = useWidth<HTMLDivElement>();
   const [active, setActive] = useState<number | null>(null);
   const [showTable, setShowTable] = useState(false);
@@ -121,7 +127,7 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
         className="relative outline-none focus-visible:rounded-control focus-visible:ring-2 focus-visible:ring-primary"
         tabIndex={0}
         role="img"
-        aria-label={`${label}: ${format(points[0].value)} on ${formatShortDate(points[0].date)}, ${format(last.value)} on ${formatShortDate(last.date)}. Use arrow keys to read values.`}
+        aria-label={`${label}: ${format(points[0].value)} on ${formatShortDate(points[0].date)}, ${format(last.value)} on ${formatShortDate(last.date)}.${markers?.length ? ` ${markers.length} days with symptoms logged.` : ""} Use arrow keys to read values.`}
         onKeyDown={onKey}
         onFocus={() => setActive((i) => i ?? points.length - 1)}
         onBlur={() => setActive(null)}
@@ -183,6 +189,19 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
                 strokeWidth={2}
               />
             ))}
+            {markers?.map((marker) => (
+              <rect
+                key={marker.date}
+                x={x(marker.date) - 1}
+                y={height - M.bottom + 3}
+                width={2}
+                height={5}
+                rx={1}
+                className="fill-warning"
+              >
+                <title>{`${formatShortDate(marker.date)}: ${marker.label}`}</title>
+              </rect>
+            ))}
             {!current && (
               <text x={x(last.date) + 8} y={y(last.value)} dy="0.32em" className="fill-ink-secondary text-[11px] font-semibold">
                 {format(last.value)}
@@ -198,6 +217,11 @@ export function TrendChart({ label, points, format, tickFormat = plainNumber, ba
           >
             <p className="text-sm font-semibold text-surface">{format(current.value)}</p>
             <p className="text-[10px] text-surface/80">{formatShortDate(current.date)}</p>
+            {markers?.find((marker) => marker.date === current.date) && (
+              <p className="mt-0.5 text-[10px] font-medium text-surface">
+                {markers.find((marker) => marker.date === current.date)!.label}
+              </p>
+            )}
           </div>
         )}
         {width === 0 && <div style={{ height }} />}

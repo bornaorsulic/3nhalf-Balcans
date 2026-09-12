@@ -168,6 +168,41 @@ def create_draft(
     return summary_id
 
 
+def request_changes(summary_id: str, *, clinician_id: str, note: str) -> dict:
+    """Send a draft back instead of approving it.
+
+    The note explains what needs to change. It stays on the clinician side: the
+    patient app never receives it, and the summary stays unapproved, so no body
+    reaches the patient either.
+    """
+    summary = _one("SELECT * FROM summaries WHERE id = %s;", (summary_id,))
+    if not summary:
+        raise SummaryError("That summary does not exist.")
+    if summary["status"] == "approved":
+        raise SummaryError("This summary was already sent to the patient.")
+    if not note.strip():
+        raise SummaryError("Say what needs to change, so the next reader knows.")
+
+    row = _execute_returning(
+        """
+        UPDATE summaries
+        SET status = 'changes_requested', review_note = %s, reviewed_by = %s, reviewed_at = %s
+        WHERE id = %s
+        RETURNING *;
+        """,
+        (note.strip(), clinician_id, _now(), summary_id),
+    )
+    return {"id": row["id"], "status": row["status"], "reviewNote": row.get("review_note") or ""}
+
+
+def _execute_returning(sql: str, params: tuple) -> dict:
+    with connect() as connection, connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(sql, params)
+        row = cursor.fetchone()
+        connection.commit()
+    return row
+
+
 def edit(
     summary_id: str,
     *,
@@ -212,7 +247,8 @@ def edit(
         cursor.execute(
             """
             UPDATE summaries
-            SET what_we_see = %s,
+            SET status = CASE WHEN status = 'changes_requested' THEN 'in_review' ELSE status END,
+                what_we_see = %s,
                 what_it_means = %s,
                 next_steps = %s,
                 questions_for_visit = %s,

@@ -397,6 +397,11 @@ ALTERS = [
     "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;",
     # Summaries now carry a version pointer and an edit trail.
     "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS current_version INTEGER DEFAULT 1;",
+    # A reviewing clinician can send a draft back instead of only approving it.
+    # The note is for the care team and the audit trail; the patient never sees it.
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS review_note TEXT;",
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(50);",
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;",
     "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS edited_by VARCHAR(50);",
     "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;",
     # Display preferences, so times read the same on every device.

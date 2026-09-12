@@ -91,9 +91,12 @@ def find_doctors(query: str | None = None, patient_id: str | None = None) -> lis
             """
             SELECT * FROM clinicians
             WHERE name ILIKE %s OR specialty ILIKE %s OR city ILIKE %s OR practice ILIKE %s
+               -- Language is a real barrier to care: someone searching "Arabic" should
+               -- find the doctors who speak it, not an empty list.
+               OR languages::text ILIKE %s
             ORDER BY name;
             """,
-            (like, like, like, like),
+            (like, like, like, like, like),
         )
     else:
         rows = _query("SELECT * FROM clinicians ORDER BY name;")
@@ -330,6 +333,12 @@ def list_for_clinician(clinician_id: str) -> list[dict]:
         }
         payload = connection_json(connection, patient=row)
         payload["unreadMessages"] = unread_count(row["connection_id"], "clinician")
+        # So the roster can say who is waiting on a review, not just who exists.
+        waiting = _one(
+            "SELECT COUNT(*) AS n FROM summaries WHERE patient_id = %s AND status <> 'approved';",
+            (row["patient_id"],),
+        )
+        payload["summariesToReview"] = int((waiting or {}).get("n") or 0)
         out.append(payload)
     return out
 
