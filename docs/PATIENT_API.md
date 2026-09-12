@@ -32,6 +32,8 @@ example data.
 | GET | `/patients/{id}/summaries` | – | `ClinicianSummary[]` (newest first) |
 | POST | `/patients/{id}/summaries/{summaryId}/read` | – | `204` |
 | GET | `/patients/{id}/summaries/{summaryId}/audio` | – | `audio/mpeg` for approved summaries |
+| GET | `/patients/{id}/summaries/{summaryId}/export.pdf` | – | `application/pdf` for approved summaries |
+| GET | `/patients/{id}/results/export?format=csv|json` | – | `text/csv` or `application/json` |
 | GET | `/patients/{id}/appointment-questions` | – | `AppointmentQuestion[]` |
 | POST | `/patients/{id}/appointment-questions` | `{ text, origin }` | `AppointmentQuestion` |
 | DELETE | `/patients/{id}/appointment-questions/{questionId}` | – | `204` |
