@@ -62,9 +62,7 @@ function ConnectedCards() {
   const accepted = connections?.filter((c) => c.status === "accepted") ?? [];
   const pending = connections?.filter((c) => c.status === "pending") ?? [];
   const unread = accepted.reduce((total, c) => total + c.unreadMessages, 0);
-  const next = appointments
-    ?.filter((a) => a.status === "booked" && new Date(a.startsAt) >= new Date())
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0];
+  const next = appointments?.[0];
 
   return (
     <>

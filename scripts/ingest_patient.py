@@ -107,16 +107,40 @@ def ingest_demo_format(cursor, data: dict) -> str:
 
     appointment = data.get("appointment")
     if appointment:
+        slot_id = None
+        if appointment.get("clinicianId"):
+            cursor.execute(
+                """
+                INSERT INTO availability_slots (id, clinician_id, starts_at, duration_minutes, status, location)
+                VALUES (%s, %s, %s, %s, 'booked', %s)
+                ON CONFLICT (clinician_id, starts_at) DO UPDATE
+                    SET status = 'booked'
+                RETURNING id;
+                """,
+                (
+                    f"slot-seeded-{appointment['id']}",
+                    appointment.get("clinicianId"),
+                    appointment["startsAt"],
+                    appointment.get("durationMinutes", 30),
+                    appointment.get("location"),
+                ),
+            )
+            slot_id = cursor.fetchone()[0]
+
         cursor.execute(
             """
-            INSERT INTO appointments (id, patient_id, clinician_id, starts_at, reason, location)
-            VALUES (%s, %s, %s, %s, %s, %s);
+            INSERT INTO appointments
+                (id, patient_id, clinician_id, slot_id, starts_at, duration_minutes, status, reason, location)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
             """,
             (
                 appointment["id"],
                 patient_id,
                 appointment.get("clinicianId"),
+                slot_id,
                 appointment["startsAt"],
+                appointment.get("durationMinutes", 30),
+                appointment.get("status", "booked"),
                 appointment.get("reason"),
                 appointment.get("location"),
             ),

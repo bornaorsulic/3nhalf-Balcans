@@ -177,14 +177,20 @@ SELECT_APPOINTMENTS = """
 """
 
 
-def list_for_patient(patient_id: str, include_cancelled: bool = False) -> list[dict]:
+def list_for_patient(
+    patient_id: str,
+    include_cancelled: bool = False,
+    *,
+    upcoming_only: bool = False,
+) -> list[dict]:
     rows = _query(
         SELECT_APPOINTMENTS
         + """
         WHERE a.patient_id = %s AND (%s OR COALESCE(a.status, 'booked') <> 'cancelled')
+          AND (%s = FALSE OR a.starts_at >= NOW())
         ORDER BY a.starts_at;
         """,
-        (patient_id, include_cancelled),
+        (patient_id, include_cancelled, upcoming_only),
     )
     return [appointment_json(row) for row in rows]
 

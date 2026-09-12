@@ -22,7 +22,7 @@ from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend import models  # noqa: E402
+from backend import models, schedule  # noqa: E402
 from backend.database import connect  # noqa: E402
 
 DEMO_PATIENT_ID = "demo"
@@ -70,20 +70,18 @@ def get_profile(patient_id: str) -> dict | None:
     if patient.get("clinician_id"):
         clinician = _one("SELECT * FROM clinicians WHERE id = %s;", (patient["clinician_id"],))
 
-    # The next appointment: upcoming and not cancelled.
-    appointment = _one(
-        """
-        SELECT * FROM appointments
-        WHERE patient_id = %s
-          AND COALESCE(status, 'booked') <> 'cancelled'
-          AND starts_at >= NOW()
-        ORDER BY starts_at
-        LIMIT 1;
-        """,
-        (patient_id,),
-    )
-    if appointment and appointment.get("clinician_id"):
-        appointment["clinician"] = _one("SELECT * FROM clinicians WHERE id = %s;", (appointment["clinician_id"],))
+    # One source of truth: reuse the schedule query the appointments API uses.
+    upcoming = schedule.list_for_patient(patient_id, upcoming_only=True)
+    appointment = None
+    if upcoming:
+        appointment = {
+            "id": upcoming[0]["id"],
+            "starts_at": upcoming[0]["startsAt"],
+            "reason": upcoming[0].get("reason"),
+            "location": upcoming[0].get("location"),
+        }
+        if upcoming[0].get("clinician"):
+            appointment["clinician"] = upcoming[0]["clinician"]
 
     return models.profile(patient, clinician, appointment)
 

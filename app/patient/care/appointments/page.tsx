@@ -23,7 +23,7 @@ const HORIZON_DAYS = 63;
 
 export default function AppointmentsPage() {
   const { data: connections } = useConnections();
-  const { data: appointments, isLoading, mutate } = useAppointments();
+  const { data: appointments, error: loadError, isLoading, mutate } = useAppointments();
   const accepted = useMemo(() => connections?.filter((c) => c.status === "accepted") ?? [], [connections]);
 
   const [doctorId, setDoctorId] = useState<string | null>(null);
@@ -51,9 +51,8 @@ export default function AppointmentsPage() {
     [slots, selectedDay],
   );
 
-  const upcoming = (appointments ?? [])
-    .filter((a) => a.status === "booked" && new Date(a.startsAt) >= new Date())
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+  const upcoming = appointments ?? [];
+  const fetchError = loadError instanceof Error ? loadError.message : loadError ? "Could not load appointments." : null;
 
   async function run(action: () => Promise<unknown>) {
     setBusy(true);
@@ -75,11 +74,21 @@ export default function AppointmentsPage() {
     <div className="pb-8">
       <PageHeader title="Appointments" subtitle="Pick a day, then a time" backHref="/patient/care" />
       <div className="px-5">
-        {error && <p role="alert" className="rounded-control bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
+        {(error || fetchError) && (
+          <p role="alert" className="rounded-control bg-critical-soft px-3 py-2 text-sm text-critical">
+            {error || fetchError}
+          </p>
+        )}
 
         <SectionTitle>Upcoming</SectionTitle>
         {isLoading && !appointments ? (
           <LoadingCards count={1} />
+        ) : fetchError ? (
+          <Card className="text-center">
+            <CalendarDays aria-hidden className="mx-auto size-8 text-critical" />
+            <p className="mt-2 font-semibold">Could not load appointments</p>
+            <p className="mt-1 text-sm text-ink-muted">Please try again in a moment.</p>
+          </Card>
         ) : upcoming.length === 0 ? (
           <Card className="text-center">
             <CalendarDays aria-hidden className="mx-auto size-8 text-ink-muted" />

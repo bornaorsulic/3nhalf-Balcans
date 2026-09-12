@@ -846,7 +846,7 @@ def delete_slot(slot_id: str, user: dict = Depends(current_clinician)) -> Respon
 @app.get(PREFIX + "/appointments")
 def appointments(include_cancelled: bool = False, user: dict = Depends(current_user)) -> list[dict]:
     if user["role"] == "patient":
-        return schedule.list_for_patient(user["patient_id"], include_cancelled)
+        return schedule.list_for_patient(user["patient_id"], include_cancelled, upcoming_only=True)
     return schedule.list_for_clinician(user["clinician_id"], include_cancelled)
 
 
