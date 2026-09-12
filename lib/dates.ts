@@ -75,3 +75,40 @@ export function greetingFor(date = new Date()): string {
   if (h < 18) return "Good afternoon";
   return "Good evening";
 }
+
+/** Monday of the week `date` falls in (local time). */
+export function startOfWeek(date: Date): Date {
+  const start = startOfDay(date);
+  const weekday = (start.getDay() + 6) % 7; // Monday = 0
+  start.setDate(start.getDate() - weekday);
+  return start;
+}
+
+/** First day of the month `date` falls in. */
+export function startOfMonth(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+export function addMonths(date: Date, months: number): Date {
+  return new Date(date.getFullYear(), date.getMonth() + months, 1);
+}
+
+export function isSameDay(a: Date, b: Date): boolean {
+  return toISODate(a) === toISODate(b);
+}
+
+/** Minutes since local midnight — where a time sits in a day column. */
+export function minutesIntoDay(value: string | Date): number {
+  const date = typeof value === "string" ? parseDate(value) : value;
+  return date.getHours() * 60 + date.getMinutes();
+}
+
+/** "September 2026" */
+export function formatMonth(date: Date): string {
+  return date.toLocaleDateString(LOCALE, { month: "long", year: "numeric" });
+}
+
+/** "Mon" */
+export function formatWeekdayShort(date: Date): string {
+  return date.toLocaleDateString(LOCALE, { weekday: "short" });
+}

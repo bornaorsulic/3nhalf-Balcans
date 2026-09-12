@@ -39,20 +39,45 @@ A patient can have several doctors and a doctor has many patients. One row in
 * The patient searches the directory (`GET /doctors`) by name, specialty or city.
   A doctor with `accepting_new_patients = false` cannot be asked.
 
-## Appointments
+## Appointments and the calendar
 
-The doctor publishes open times; the patient books one:
+The doctor describes a **normal week** once, and the calendar fills itself:
 
-1. Doctor adds slots on `/clinician/calendar` (or "Add 5 mornings" for a demo).
-2. Patient sees open slots in `/patient/care/appointments` and books one.
-3. Booking flips the slot to `booked` **in the same transaction** as the appointment,
-   so two patients cannot take the same time. The second one gets "someone just took
-   that slot".
-4. Cancelling reopens the slot. Rescheduling cancels and rebooks, and the new
-   appointment remembers `rescheduled_from`.
+```txt
+availability_rules              "every Tuesday 09:00-12:00, 30 min"
+      │  generated 8 weeks ahead
+      ▼
+availability_slots              concrete bookable times (source = 'template')
+      │  patient books one
+      ▼
+appointments                    slot flips to 'booked' in the same transaction
+```
 
-Times are stored in UTC (`TIMESTAMPTZ`) and rendered in each viewer's own time zone;
-both calendar screens say which zone they are showing.
+**Views**
+
+* Doctor (`/clinician/calendar`): a **week grid** (days across, half-hour rows) with a
+  **month** switcher for the overview. Open times are green, booked appointments show
+  the patient's name, blocked times are dashed.
+* Patient (`/patient/care/appointments`): a **month grid** with a dot on every day that
+  has free times; tapping a day lists them as big tap targets.
+
+**Exceptions on top of the template**
+
+* Click an empty cell in the week grid to open a **one-off** time (`source = 'manual'`).
+* Click a generated time to **block** it — it is marked `blocked` rather than deleted,
+  so regenerating does not bring it back. Click again to offer it.
+
+**Rules of the model**
+
+1. Booking flips the slot to `booked` **in the same transaction** as the appointment, so
+   two patients cannot take the same time.
+2. Cancelling reopens the slot. Rescheduling cancels and rebooks, keeping
+   `rescheduled_from`.
+3. **A template change never touches a booking.** If the doctor drops Tuesday mornings
+   while someone holds a Tuesday 09:00 slot, the appointment stays and is flagged
+   "outside your weekly template" so it can be moved deliberately.
+4. Times in a rule are the clinic's local time; generated slots are stored in UTC and
+   rendered in each viewer's own zone. Both calendars name the zone they are showing.
 
 ## Messaging
 
@@ -96,8 +121,11 @@ GET    /api/v1/connections
 POST   /api/v1/connections/request | /connections/invite
 POST   /api/v1/connections/{id}/respond | /{id}/end
 GET    /api/v1/connections/{id}/messages     POST same path      POST /{id}/read
-GET    /api/v1/clinicians/{id}/slots?only_open=
-POST   /api/v1/clinician/slots               DELETE /clinician/slots/{id}
+GET    /api/v1/clinicians/{id}/slots?only_open=&days=
+POST   /api/v1/clinician/slots               DELETE /clinician/slots/{id}      (delete or block)
+POST   /api/v1/clinician/slots/{id}/unblock
+GET    /api/v1/clinician/availability-rules  POST same path
+DELETE /api/v1/clinician/availability-rules/{id}
 GET    /api/v1/appointments                  POST /appointments
 POST   /api/v1/appointments/{id}/cancel | /{id}/reschedule
 PUT    /api/v1/patients/{id}/summaries/{summaryId}               (edit, clinician)

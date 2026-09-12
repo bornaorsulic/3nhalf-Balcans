@@ -16,13 +16,14 @@ from __future__ import annotations
 import json
 import sys
 import uuid
-from datetime import datetime, time, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from psycopg.rows import dict_row
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from backend import schedule  # noqa: E402
 from backend.auth import hash_password  # noqa: E402
 from backend.database import connect, describe_target  # noqa: E402
 
@@ -40,6 +41,7 @@ CLINICIANS = [
         "bio": "Works on metabolic health, sleep and recovery with a preventive focus.",
         "accepting": True,
         "email": "eriksson@demo.health",
+        "template": [(1, "09:00", "12:00"), (3, "14:00", "16:30")],
     },
     {
         "id": "clin-moreau",
@@ -52,6 +54,7 @@ CLINICIANS = [
         "bio": "Sleep assessments, insomnia and shift-work recovery.",
         "accepting": True,
         "email": "moreau@demo.health",
+        "template": [(0, "09:00", "11:00"), (2, "09:00", "11:00")],
     },
     {
         "id": "clin-haugen",
@@ -64,6 +67,7 @@ CLINICIANS = [
         "bio": "Lipids, blood pressure and long-term cardiovascular risk.",
         "accepting": False,
         "email": "haugen@demo.health",
+        "template": [(4, "10:00", "12:00")],
     },
 ]
 
@@ -78,22 +82,6 @@ INVITE_CODES = ["LONGEVITY-2026", "CLINIC-INVITE-2"]
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
-
-
-def weekday_slots(days: int = 10, per_day: tuple[int, ...] = (9, 10, 11, 14, 15)) -> list[datetime]:
-    """Half-hour slots on the next `days` weekdays."""
-    slots: list[datetime] = []
-    day = _now().date()
-    added = 0
-    while added < days:
-        day += timedelta(days=1)
-        if day.weekday() >= 5:  # skip weekends
-            continue
-        for hour in per_day:
-            for minute in (0, 30):
-                slots.append(datetime.combine(day, time(hour, minute), tzinfo=timezone.utc))
-        added += 1
-    return slots
 
 
 def main() -> None:
@@ -184,17 +172,19 @@ def main() -> None:
             (cid, patient_id, clinician_id, status, initiated_by, note, _now() - timedelta(days=21), responded),
         )
 
-    # ---- calendar slots ----
+    # ---- weekly availability template ----
+    # Each doctor keeps a normal week; the bookable slots are generated from it.
     cursor.execute("DELETE FROM availability_slots WHERE status = 'open';")
     for doctor in CLINICIANS:
-        for starts_at in weekday_slots():
+        cursor.execute("DELETE FROM availability_rules WHERE clinician_id = %s;", (doctor["id"],))
+        for weekday, start, end in doctor["template"]:
             cursor.execute(
                 """
-                INSERT INTO availability_slots (id, clinician_id, starts_at, duration_minutes, location)
-                VALUES (%s, %s, %s, 30, %s)
-                ON CONFLICT (clinician_id, starts_at) DO NOTHING;
+                INSERT INTO availability_rules
+                    (id, clinician_id, weekday, start_time, end_time, slot_minutes, location)
+                VALUES (%s, %s, %s, %s, %s, 30, %s);
                 """,
-                (f"slot-{uuid.uuid4().hex[:10]}", doctor["id"], starts_at, doctor["practice"]),
+                (f"rule-{uuid.uuid4().hex[:10]}", doctor["id"], weekday, start, end, doctor["practice"]),
             )
 
     # ---- a short message thread, so the chat is not empty on first open ----
@@ -224,6 +214,10 @@ def main() -> None:
     connection.commit()
     cursor.close()
     connection.close()
+
+    for doctor in CLINICIANS:
+        result = schedule.regenerate(doctor["id"])
+        print(f"  {doctor['name']}: {result['created']} bookable times generated from the template")
 
     print("\nSeeded demo logins (password for all: " + DEMO_PASSWORD + "):")
     for patient in PATIENTS:

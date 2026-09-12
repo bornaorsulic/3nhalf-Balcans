@@ -129,7 +129,7 @@ docs/                 API contract, database, accounts and Health Agent document
 | Patient app | Runs on the browser mock **or** the PostgreSQL backend (`NEXT_PUBLIC_API_MODE`). |
 | Clinician dashboard | Account-based roster, calendar, messaging and summary editing on the backend; the offline demo keeps Borna's original screens. |
 | Care network | N:N connections with request, invite, accept, reject and disconnect. |
-| Calendar | Doctor publishes slots; patient books, cancels or reschedules. |
+| Calendar | Doctor keeps a weekly template and sees a week grid with a month view; patient books from a month calendar, cancels or reschedules. |
 | Database | Schema, ingest and read/write API working (see docs/DATABASE.md). |
 | Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape. Plan: [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md). |
 | Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs. |

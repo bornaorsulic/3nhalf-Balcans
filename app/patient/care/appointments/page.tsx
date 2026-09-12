@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { CalendarDays, CalendarPlus, Clock, MapPin, Stethoscope } from "lucide-react";
+import { useMemo, useState } from "react";
+import { CalendarDays, Clock, MapPin, Stethoscope } from "lucide-react";
 
+import { MonthGrid, type DayCounts } from "@/components/calendar/month-grid";
 import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
 import { Button, Card, LoadingCards, SectionTitle, StatusPill, cx } from "@/components/patient/ui";
@@ -17,23 +18,40 @@ import {
   useSlots,
   type Appointment,
 } from "@/lib/care-api";
-import { formatDay, formatRelativeDay, formatTime } from "@/lib/dates";
+import { addDays, formatDay, formatRelativeDay, formatTime, parseDate, toISODate } from "@/lib/dates";
 import { isMockMode } from "@/lib/session";
+
+const HORIZON_DAYS = 63;
 
 export default function AppointmentsPage() {
   const { data: connections } = useConnections();
   const { data: appointments, isLoading, mutate } = useAppointments();
-  const accepted = connections?.filter((c) => c.status === "accepted") ?? [];
+  const accepted = useMemo(() => connections?.filter((c) => c.status === "accepted") ?? [], [connections]);
 
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [month, setMonth] = useState(() => new Date());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [rescheduling, setRescheduling] = useState<Appointment | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const selectedDoctor = doctorId ?? rescheduling?.clinicianId ?? accepted[0]?.clinicianId ?? null;
-  const { data: slots, mutate: refreshSlots } = useSlots(selectedDoctor, true);
+  const { data: slots, mutate: refreshSlots } = useSlots(selectedDoctor, true, HORIZON_DAYS);
   const isClient = useIsClient();
-  const timeZone = isClient ? Intl.DateTimeFormat().resolvedOptions().timeZone : "";
+
+  const counts = useMemo(() => {
+    const byDay: Record<string, DayCounts> = {};
+    for (const slot of slots ?? []) {
+      const key = toISODate(parseDate(slot.startsAt));
+      byDay[key] = { free: (byDay[key]?.free ?? 0) + 1, booked: 0 };
+    }
+    return byDay;
+  }, [slots]);
+
+  const daySlots = useMemo(
+    () => (slots ?? []).filter((slot) => toISODate(parseDate(slot.startsAt)) === selectedDay),
+    [slots, selectedDay],
+  );
 
   const upcoming = (appointments ?? [])
     .filter((a) => a.status === "booked" && new Date(a.startsAt) >= new Date())
@@ -46,6 +64,7 @@ export default function AppointmentsPage() {
       await action();
       await Promise.all([mutate(), refreshSlots()]);
       setRescheduling(null);
+      setSelectedDay(null);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "That did not work");
     } finally {
@@ -57,16 +76,14 @@ export default function AppointmentsPage() {
     return (
       <div className="pb-8">
         <PageHeader title="Appointments" backHref="/patient/care" />
-        <div className="px-5">
-          <NeedsBackend feature="Appointments" />
-        </div>
+        <div className="px-5"><NeedsBackend feature="Appointments" /></div>
       </div>
     );
   }
 
   return (
     <div className="pb-8">
-      <PageHeader title="Appointments" subtitle="Book a time with a doctor you are connected with" backHref="/patient/care" />
+      <PageHeader title="Appointments" subtitle="Pick a day, then a time" backHref="/patient/care" />
       <div className="px-5">
         {error && <p role="alert" className="rounded-control bg-critical-soft px-3 py-2 text-sm text-critical">{error}</p>}
 
@@ -77,7 +94,7 @@ export default function AppointmentsPage() {
           <Card className="text-center">
             <CalendarDays aria-hidden className="mx-auto size-8 text-ink-muted" />
             <p className="mt-2 font-semibold">Nothing booked</p>
-            <p className="mt-1 text-sm text-ink-muted">Pick a free time below.</p>
+            <p className="mt-1 text-sm text-ink-muted">Pick a day in the calendar below.</p>
           </Card>
         ) : (
           <ul className="space-y-3">
@@ -95,12 +112,19 @@ export default function AppointmentsPage() {
                           <MapPin aria-hidden className="size-3.5" /> {appointment.location}
                         </p>
                       )}
-                      {appointment.reason && <p className="mt-1.5 text-sm text-ink-secondary">{appointment.reason}</p>}
                     </div>
                     <StatusPill tone="good">{formatRelativeDay(appointment.startsAt)}</StatusPill>
                   </div>
                   <div className="mt-3 flex gap-2">
-                    <Button variant="secondary" disabled={busy} onClick={() => setRescheduling(appointment)}>
+                    <Button
+                      variant="secondary"
+                      disabled={busy}
+                      onClick={() => {
+                        setRescheduling(appointment);
+                        setSelectedDay(null);
+                        setMonth(parseDate(appointment.startsAt));
+                      }}
+                    >
                       Reschedule
                     </Button>
                     <Button variant="ghost" disabled={busy} onClick={() => run(() => cancelAppointment(appointment.id))}>
@@ -126,7 +150,7 @@ export default function AppointmentsPage() {
         ) : (
           <>
             {rescheduling && (
-              <p className="mb-2 rounded-control bg-primary-soft px-3 py-2 text-sm text-ink-secondary">
+              <p className="mb-3 rounded-control bg-primary-soft px-3 py-2 text-sm text-ink-secondary">
                 Moving your appointment on {formatDay(rescheduling.startsAt)}.{" "}
                 <button type="button" className="font-semibold text-primary" onClick={() => setRescheduling(null)}>
                   Keep it
@@ -140,7 +164,7 @@ export default function AppointmentsPage() {
                   <button
                     key={connection.id}
                     type="button"
-                    onClick={() => setDoctorId(connection.clinicianId)}
+                    onClick={() => { setDoctorId(connection.clinicianId); setSelectedDay(null); }}
                     aria-pressed={selectedDoctor === connection.clinicianId}
                     className={cx(
                       "min-h-9 rounded-full border px-3.5 text-sm transition-colors",
@@ -155,73 +179,60 @@ export default function AppointmentsPage() {
               </div>
             )}
 
-            <SlotPicker
-              slots={slots}
-              busy={busy}
-              onPick={(slotId) =>
-                run(() =>
-                  rescheduling
-                    ? rescheduleAppointment(rescheduling.id, slotId)
-                    : bookAppointment(slotId, "Follow-up"),
-                )
-              }
-            />
-            {timeZone && <p className="mt-2 px-1 text-xs text-ink-muted">Times are shown in your time zone ({timeZone}).</p>}
+            <Card>
+              {!slots ? (
+                <LoadingCards count={1} />
+              ) : (
+                <MonthGrid
+                  month={month}
+                  counts={counts}
+                  selected={selectedDay}
+                  onSelectDay={setSelectedDay}
+                  onMonthChange={(next) => { setMonth(next); setSelectedDay(null); }}
+                  requireFree
+                  minDate={new Date()}
+                  maxDate={addDays(new Date(), HORIZON_DAYS)}
+                />
+              )}
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-muted">
+                <span className="size-1.5 rounded-full bg-good" /> days with free times
+                {isClient && <span className="ml-auto">Times in {Intl.DateTimeFormat().resolvedOptions().timeZone}</span>}
+              </p>
+            </Card>
+
+            {selectedDay && (
+              <Card className="mt-3">
+                <p className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Clock aria-hidden className="size-3.5 text-primary" /> {formatDay(selectedDay)}
+                </p>
+                {daySlots.length === 0 ? (
+                  <p className="mt-2 text-sm text-ink-muted">No free times left on this day.</p>
+                ) : (
+                  <div className="mt-3 grid grid-cols-3 gap-2">
+                    {daySlots.map((slot) => (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() =>
+                          run(() =>
+                            rescheduling
+                              ? rescheduleAppointment(rescheduling.id, slot.id)
+                              : bookAppointment(slot.id, "Follow-up"),
+                          )
+                        }
+                        className="min-h-11 rounded-control border border-line bg-surface text-sm font-medium text-ink-secondary transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
+                      >
+                        {formatTime(slot.startsAt)}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            )}
           </>
         )}
       </div>
-    </div>
-  );
-}
-
-function SlotPicker({
-  slots,
-  busy,
-  onPick,
-}: {
-  slots: { id: string; startsAt: string }[] | undefined;
-  busy: boolean;
-  onPick: (slotId: string) => void;
-}) {
-  if (!slots) return <LoadingCards count={2} />;
-  if (slots.length === 0) {
-    return (
-      <Card className="text-center">
-        <CalendarPlus aria-hidden className="mx-auto size-8 text-ink-muted" />
-        <p className="mt-2 font-semibold">No free times</p>
-        <p className="mt-1 text-sm text-ink-muted">This doctor has not published open slots yet.</p>
-      </Card>
-    );
-  }
-
-  const byDay = new Map<string, { id: string; startsAt: string }[]>();
-  for (const slot of slots) {
-    const day = slot.startsAt.slice(0, 10);
-    byDay.set(day, [...(byDay.get(day) ?? []), slot]);
-  }
-
-  return (
-    <div className="space-y-3">
-      {[...byDay.entries()].slice(0, 5).map(([day, daySlots]) => (
-        <Card key={day}>
-          <p className="flex items-center gap-1.5 text-sm font-semibold">
-            <Clock aria-hidden className="size-3.5 text-primary" /> {formatDay(day)}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {daySlots.map((slot) => (
-              <button
-                key={slot.id}
-                type="button"
-                disabled={busy}
-                onClick={() => onPick(slot.id)}
-                className="min-h-9 rounded-full border border-line bg-surface px-3.5 text-sm text-ink-secondary transition-colors hover:border-primary hover:text-primary disabled:opacity-50"
-              >
-                {formatTime(slot.startsAt)}
-              </button>
-            ))}
-          </div>
-        </Card>
-      ))}
     </div>
   );
 }

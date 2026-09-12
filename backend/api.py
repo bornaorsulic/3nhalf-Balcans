@@ -140,6 +140,14 @@ class RescheduleBody(BaseModel):
     slotId: str
 
 
+class RuleBody(BaseModel):
+    weekday: int = Field(ge=0, le=6)
+    startTime: str
+    endTime: str
+    slotMinutes: int = 30
+    location: str = ""
+
+
 class SummaryEditBody(BaseModel):
     whatWeSee: str
     whatItMeans: str
@@ -472,8 +480,51 @@ def mark_messages_read(connection_id: str, user: dict = Depends(current_user)) -
 
 
 @app.get(PREFIX + "/clinicians/{clinician_id}/slots")
-def clinician_slots(clinician_id: str, only_open: bool = True, user: dict = Depends(current_user)) -> list[dict]:
-    return schedule.list_slots(clinician_id, only_open=only_open)
+def clinician_slots(
+    clinician_id: str,
+    only_open: bool = True,
+    days: int = 28,
+    user: dict = Depends(current_user),
+) -> list[dict]:
+    return schedule.list_slots(clinician_id, only_open=only_open, days=days)
+
+
+# ---------- Weekly availability template ----------
+
+
+@app.get(PREFIX + "/clinician/availability-rules")
+def availability_rules(user: dict = Depends(current_clinician)) -> list[dict]:
+    return schedule.list_rules(user["clinician_id"])
+
+
+@app.post(PREFIX + "/clinician/availability-rules")
+def add_availability_rule(body: RuleBody, user: dict = Depends(current_clinician)) -> dict:
+    try:
+        return schedule.add_rule(
+            user["clinician_id"],
+            weekday=body.weekday,
+            start_time=body.startTime,
+            end_time=body.endTime,
+            slot_minutes=body.slotMinutes,
+            location=body.location,
+        )
+    except schedule.ScheduleError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+
+@app.delete(PREFIX + "/clinician/availability-rules/{rule_id}", status_code=204)
+def delete_availability_rule(rule_id: str, user: dict = Depends(current_clinician)) -> Response:
+    schedule.remove_rule(user["clinician_id"], rule_id)
+    return Response(status_code=204)
+
+
+@app.post(PREFIX + "/clinician/slots/{slot_id}/unblock", status_code=204)
+def unblock_slot(slot_id: str, user: dict = Depends(current_clinician)) -> Response:
+    try:
+        schedule.unblock_slot(user["clinician_id"], slot_id)
+    except schedule.ScheduleError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return Response(status_code=204)
 
 
 @app.post(PREFIX + "/clinician/slots")

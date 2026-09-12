@@ -71,6 +71,8 @@ export interface Appointment {
   cancelledAt: string | null;
   cancelledBy: string | null;
   rescheduledFrom: string | null;
+  /** True when a booking no longer sits inside the doctor's weekly pattern. */
+  outsidePattern?: boolean;
   clinician: { id: string; name: string; role: string; practice: string } | null;
   patient: { id: string; name: string } | null;
 }
@@ -112,10 +114,40 @@ export const useMessages = (connectionId: string | null) =>
     { refreshInterval: 4000 },
   );
 
-export const useSlots = (clinicianId: string | null, onlyOpen = true) =>
-  useSWR<Slot[]>(clinicianId ? ["slots", clinicianId, onlyOpen] : null, () =>
-    apiJson<Slot[]>(`/clinicians/${clinicianId}/slots?only_open=${onlyOpen}`),
+export const useSlots = (clinicianId: string | null, onlyOpen = true, days = 28) =>
+  useSWR<Slot[]>(clinicianId ? ["slots", clinicianId, onlyOpen, days] : null, () =>
+    apiJson<Slot[]>(`/clinicians/${clinicianId}/slots?only_open=${onlyOpen}&days=${days}`),
   );
+
+/** A line of the doctor's weekly template: "every Tuesday 09:00-12:00". */
+export interface AvailabilityRule {
+  id: string;
+  clinicianId: string;
+  weekday: number;
+  weekdayName: string;
+  startTime: string;
+  endTime: string;
+  slotMinutes: number;
+  location: string;
+  active: boolean;
+}
+
+export const useAvailabilityRules = () =>
+  useSWR<AvailabilityRule[]>("availability-rules", () => apiJson<AvailabilityRule[]>("/clinician/availability-rules"));
+
+export const addAvailabilityRule = (rule: {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  slotMinutes?: number;
+  location?: string;
+}) => apiJson<AvailabilityRule>("/clinician/availability-rules", { method: "POST", body: JSON.stringify(rule) });
+
+export const removeAvailabilityRule = (ruleId: string) =>
+  apiJson<void>(`/clinician/availability-rules/${ruleId}`, { method: "DELETE" });
+
+export const unblockSlot = (slotId: string) =>
+  apiJson<void>(`/clinician/slots/${slotId}/unblock`, { method: "POST" });
 
 export const useAppointments = (includeCancelled = false) =>
   useSWR<Appointment[]>(["appointments", includeCancelled], () =>

@@ -107,7 +107,8 @@ Two file formats are supported by the ingest script:
 | `invite_codes` | Codes that allow creating a doctor account. |
 | `care_connections` | Which doctor and patient are connected, and the request lifecycle. |
 | `messages` | Doctor–patient conversation, one thread per connection. |
-| `availability_slots` | Times a doctor published for booking. |
+| `availability_rules` | The doctor's weekly template ("every Tuesday 09:00–12:00"). |
+| `availability_slots` | Concrete bookable times, generated from the template or added one-off (`source`). |
 | `summary_versions` | Every version of a patient-facing summary, AI or clinician. |
 | `audit_log` | Who opened, edited, approved or messaged, per patient. |
 
