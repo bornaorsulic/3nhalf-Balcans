@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import type { ComponentProps, ReactNode } from "react";
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle2, ChevronRight, Info, type LucideIcon } from "lucide-react";
 

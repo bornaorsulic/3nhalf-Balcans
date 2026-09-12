@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import { useMemo, useState } from "react";
 import { CalendarDays, Clock, MapPin, Stethoscope } from "lucide-react";
 

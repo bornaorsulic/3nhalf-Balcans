@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import { useMemo, useState, type FormEvent } from "react";
 import { AlertTriangle, ArrowLeft, CalendarDays, CalendarRange, Repeat, Trash2 } from "lucide-react";
 

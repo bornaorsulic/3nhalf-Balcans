@@ -17,6 +17,25 @@ const eslintConfig = defineConfig([
     ".vinext/**",
   ]),
   {
+    rules: {
+      // A leading underscore means "deliberately unused" — e.g. props accepted for
+      // API compatibility and then discarded.
+      "@typescript-eslint/no-unused-vars": ["warn", {
+        argsIgnorePattern: "^_",
+        varsIgnorePattern: "^_",
+        destructuredArrayIgnorePattern: "^_",
+      }],
+      "no-restricted-imports": ["error", {
+        paths: [{
+          name: "next/link",
+          message:
+            "Client-side navigation into dynamic routes does not work reliably under vinext; " +
+            "import Link from '@/components/plain-link' instead. See issue #14.",
+        }],
+      }],
+    },
+  },
+  {
     files: ["components/ui/**/*.{ts,tsx}", "hooks/use-mobile.ts"],
     rules: {
       // These files are vendored verbatim from shadcn@4.17.0. Keep the

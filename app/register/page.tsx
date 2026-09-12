@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { Activity, UserPlus } from "lucide-react";

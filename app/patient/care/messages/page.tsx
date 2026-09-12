@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import { MessageCircle } from "lucide-react";
 
 import { PageHeader } from "@/components/patient/page-header";

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/components/plain-link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import { Activity, HeartHandshake, Home, MessageCircle, NotebookPen, type LucideIcon } from "lucide-react";
