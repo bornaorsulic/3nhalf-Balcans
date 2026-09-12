@@ -6,6 +6,7 @@ import { ArrowLeft, KeyRound, LogOut, Settings2, Stethoscope } from "lucide-reac
 
 import { PasswordForm } from "@/components/profile/password-form";
 import { PreferencesForm } from "@/components/profile/preferences-form";
+import { WatchConnectCard } from "@/components/profile/watch-connect-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -34,6 +35,16 @@ export default function ClinicianProfilePage() {
         </div>
         <div className="max-w-md">
           <PreferencesForm user={user} onSaved={() => refresh()} />
+        </div>
+      </section>
+
+      <section className="rounded-lg border bg-card p-5 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <Settings2 className="size-4 text-primary" />
+          <h2 className="text-base font-semibold">Connected devices</h2>
+        </div>
+        <div className="max-w-md">
+          <WatchConnectCard userId={user.id} />
         </div>
       </section>
 

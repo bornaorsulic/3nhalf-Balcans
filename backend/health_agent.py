@@ -7,14 +7,15 @@ import uuid
 from datetime import date, datetime, timezone
 from pydantic import ValidationError
 from backend import agent, retrieval
-from backend.amass import AmassClient, EvidenceResult, research_query
+from backend.amass import AmassClient, EvidenceResult, public_research_query, research_query
 from backend.config import Settings
-from backend.contracts import ClinicianChatResponse, ModelAnswer, ModelDraft
+from backend.contracts import ClinicianChatResponse, ModelAnswer, ModelDraft, ModelResearchAnswer, ResearchChatResponse
 from backend.nebius import NebiusClient, ProviderFailure
-from backend.prompts import build_messages, observations
+from backend.prompts import build_messages, build_research_messages, observations
 
 log = logging.getLogger(__name__)
 SAFETY_NOTE = 'Decision support only. No diagnosis or prescribing. Clinician review required.'
+RESEARCH_SAFETY_NOTE = 'Educational research support only. Not patient-specific advice, diagnosis, prescribing or dosing.'
 MEDICATION_REQUEST = re.compile(r'\b(dose|dosage|prescribe|prescription|medication|metformin|statin|supplement)\b|should (?:I|the patient) take', re.I)
 # These are conservative supplementary checks, not a semantic clinical verifier.
 UNSAFE_OUTPUT = re.compile(
@@ -138,6 +139,48 @@ class HealthAgent:
                               'preventionStep': 'Review the result, its reference range and relevant history with the clinician.', 'sources': ['Bloodwork']})
         return ModelAnswer(answer=text, riskSignals=risks[:6], followUpQuestions=scripted['followUps'][:6], citations=[], confidence='low')
 
+    def _research_fallback(self, question, evidence):
+        if not evidence:
+            return ModelResearchAnswer(
+                answer=(
+                    'I could not retrieve enough evidence for a grounded synthesis. Try narrowing the question to a '
+                    'condition, mechanism, intervention, or outcome, such as sleep restriction and glucose tolerance.'
+                ),
+                keyTakeaways=['No matching public evidence was available from Amass or the local research table.'],
+                studyNotes=['The safe fallback avoids making unsupported mechanistic or clinical claims.'],
+                followUpQuestions=[
+                    'Which population should I focus on?',
+                    'Are you looking for mechanism, prognosis, or intervention evidence?',
+                ],
+                citations=[],
+                confidence='low',
+            )
+
+        titles = [item['title'] for item in evidence[:3]]
+        return ModelResearchAnswer(
+            answer=(
+                'AI synthesis is unavailable, so here are the retrieved studies to review directly:\n\n'
+                + '\n'.join(f"- {title}" for title in titles)
+            ),
+            keyTakeaways=[
+                'Evidence was retrieved, but the model synthesis step was unavailable.',
+                'Open the linked sources before applying any point to clinical reasoning.',
+            ],
+            studyNotes=[
+                'Check population, intervention or exposure, endpoint, and whether the paper supports causality or only association.',
+                'Do not generalize study findings to a specific patient without clinical review.',
+            ],
+            followUpQuestions=[
+                'What does the strongest study say about mechanism?',
+                'Which outcomes were measured, and over what time window?',
+            ],
+            citations=[
+                {'id': item['id'], 'relevance': item.get('detail') or 'Retrieved evidence for this research question.'}
+                for item in evidence[:3]
+            ],
+            confidence='low',
+        )
+
     def answer(self, patient_id, question, audience='clinician', history=None):
         context = self._context(patient_id)
         urgent = agent.check_urgent(question)
@@ -183,6 +226,34 @@ class HealthAgent:
             riskSignals=result.riskSignals, followUpQuestions=result.followUpQuestions, citations=citations,
             confidence=confidence, safetyNote=SAFETY_NOTE, draftSummary=draft_summary,
             generation={'mode': mode, 'evidence': evidence.origin, 'reason': reason}).model_dump()
+
+    def research_answer(self, question, history=None):
+        evidence = self.research.search(public_research_query(question))
+        result, reason = self._generate(build_research_messages(question, evidence.items, history), ModelResearchAnswer)
+        mode = 'nebius' if result else 'fallback'
+        if result is None:
+            result = self._research_fallback(question, evidence.items)
+
+        citations = cited_sources(result, evidence.items)
+        if not citations and evidence.items:
+            citations = retrieved_sources(evidence.items)
+        confidence = result.confidence if citations else 'low'
+        answer = result.answer
+        if mode == 'fallback':
+            answer += '\n\nAI synthesis is unavailable; this is a limited research retrieval summary.'
+
+        return ResearchChatResponse(
+            id='research-' + uuid.uuid4().hex[:10],
+            generatedAt=now(),
+            answer=answer,
+            keyTakeaways=result.keyTakeaways,
+            studyNotes=result.studyNotes,
+            followUpQuestions=result.followUpQuestions,
+            citations=citations,
+            confidence=confidence,
+            safetyNote=RESEARCH_SAFETY_NOTE,
+            generation={'mode': mode, 'evidence': evidence.origin, 'reason': reason},
+        ).model_dump()
 
     def _draft_summary_from_answer(self, result, citations):
         """Patient-facing draft used by the new clinician Ask tab."""

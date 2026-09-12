@@ -13,9 +13,12 @@ import {
   Sparkles,
   ShieldCheck,
   Smartphone,
+  Upload,
 } from "lucide-react";
 
 import { AgentChat } from "@/components/clinician/agent-chat";
+import { PatientFiles } from "@/components/files/patient-files";
+import { SpeakButton, VoiceNotePlayer, VoiceRecorder } from "@/components/voice-controls";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -25,6 +28,7 @@ import {
   editSummary,
   markThreadRead,
   sendMessage,
+  sendVoiceMessage,
   useAudit,
   useConnections,
   useMessages,
@@ -229,6 +233,10 @@ function Overview({ patientId }: { patientId: string }) {
               ))}
             </ul>
           )}
+        </Card>
+
+        <Card title="Patient files" icon={<Upload className="size-4 text-primary" />}>
+          <PatientFiles patientId={patientId} />
         </Card>
       </div>
 
@@ -477,6 +485,8 @@ function Thread({ connectionId, active }: { connectionId: string | null; active:
               className={mine ? "ml-8 rounded-md bg-primary p-3 text-sm text-primary-foreground" : "mr-8 rounded-md bg-muted p-3 text-sm"}
             >
               <p className="whitespace-pre-wrap">{message.body}</p>
+              {message.attachment && <VoiceNotePlayer fileId={message.attachment.id} inverse={mine} />}
+              {!mine && !message.attachment && <SpeakButton text={message.body} />}
               <p className={`mt-1 text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                 {formatDay(message.createdAt)} · {formatTime(message.createdAt)}
               </p>
@@ -493,9 +503,24 @@ function Thread({ connectionId, active }: { connectionId: string | null; active:
           placeholder="Write to your patient. Keep it plain and avoid new clinical advice in chat."
           className="min-h-20"
         />
-        <Button type="submit" disabled={busy || !draft.trim()} className="w-full gap-2">
-          <Send className="size-4" /> Send
-        </Button>
+        <div className="flex items-center gap-2">
+          <VoiceRecorder
+            disabled={busy || !connectionId}
+            onComplete={async (audio) => {
+              setBusy(true);
+              try {
+                await sendVoiceMessage(connectionId, audio);
+                await mutate();
+                await refreshConnections();
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+          <Button type="submit" disabled={busy || !draft.trim()} className="min-h-11 flex-1 gap-2">
+            <Send className="size-4" /> Send
+          </Button>
+        </div>
       </form>
     </section>
   );
@@ -508,6 +533,7 @@ const ACTION_LABELS: Record<string, string> = {
   edited_summary: "Edited a summary",
   approved_summary: "Approved a summary for the patient",
   messaged_patient: "Sent a message",
+  uploaded_file: "Uploaded a file",
   invited_patient: "Invited the patient",
   accepted_connection: "Accepted the connection",
   rejected_connection: "Declined the request",

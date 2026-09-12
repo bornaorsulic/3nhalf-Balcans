@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { Dna, FlaskConical, Info, Watch } from "lucide-react";
+import { PatientFiles } from "@/components/files/patient-files";
 import { RangeBar } from "@/components/patient/charts/range-bar";
 import { TrendChart } from "@/components/patient/charts/trend-chart";
 import { PageHeader } from "@/components/patient/page-header";
-import { Card, Delta, ErrorState, LoadingCards, StatusPill, cx, type Tone } from "@/components/patient/ui";
+import { Card, Delta, ErrorState, LoadingCards, SectionTitle, StatusPill, cx, type Tone } from "@/components/patient/ui";
 import { useGenetics, useLabs, useWearables } from "@/lib/patient-api/hooks";
 import type { LabResult, LabStatus } from "@/lib/patient-api/types";
 import { formatLongDate, formatShortDate } from "@/lib/dates";
@@ -51,6 +52,11 @@ export default function HealthPage() {
           {tab === "labs" && <LabsPanel />}
           {tab === "genes" && <GenesPanel />}
         </div>
+
+        <SectionTitle>Files for your care team</SectionTitle>
+        <Card>
+          <PatientFiles patientId="me" />
+        </Card>
       </div>
     </div>
   );

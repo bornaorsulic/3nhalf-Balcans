@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/patient/page-header";
 import { Button, Card, SectionTitle } from "@/components/patient/ui";
 import { PasswordForm } from "@/components/profile/password-form";
 import { PreferencesForm } from "@/components/profile/preferences-form";
+import { WatchConnectCard } from "@/components/profile/watch-connect-card";
 import { endConnection, useConnections } from "@/lib/care-api";
 import { formatRelativeDay } from "@/lib/dates";
 import { logout, useSession } from "@/lib/session";
@@ -48,6 +49,15 @@ export default function PatientProfilePage() {
           </div>
           {user && <PreferencesForm user={user} onSaved={() => refresh()} />}
         </Card>
+
+        {user && (
+          <>
+            <SectionTitle>Connected devices</SectionTitle>
+            <Card>
+              <WatchConnectCard userId={user.id} />
+            </Card>
+          </>
+        )}
 
         <SectionTitle>Who can see my data</SectionTitle>
         <Card>

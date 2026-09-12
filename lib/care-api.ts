@@ -8,7 +8,8 @@
 
 import useSWR from "swr";
 import { apiJson } from "@/lib/session";
-import type { ClinicianAgentReply, SummaryDraft } from "@/lib/types";
+import type { ClinicianAgentReply, ResearchAgentReply, SummaryDraft } from "@/lib/types";
+import type { ChatTurn } from "@/lib/patient-api/types";
 
 // ---------- Types (mirror the API responses) ----------
 
@@ -48,6 +49,10 @@ export interface Message {
   body: string;
   createdAt: string;
   readAt: string | null;
+  attachment?: {
+    id: number;
+    contentType: string;
+  };
 }
 
 export interface Slot {
@@ -97,6 +102,16 @@ export interface AuditEntry {
   detail: string;
   subjectId: string | null;
   createdAt: string;
+}
+
+export interface PatientFile {
+  id: string;
+  patientId: string;
+  filename: string;
+  fileType: string;
+  uploadedAt: string | null;
+  uploadedByRole: "patient" | "clinician" | "unknown";
+  label: string;
 }
 
 // ---------- Reads ----------
@@ -165,6 +180,11 @@ export const useAudit = (patientId: string | null) =>
     apiJson<AuditEntry[]>(`/patients/${patientId}/audit`),
   );
 
+export const usePatientFiles = (patientId: string | null) =>
+  useSWR<PatientFile[]>(patientId ? ["patient-files", patientId] : null, () =>
+    apiJson<PatientFile[]>(`/patients/${patientId}/files`),
+  );
+
 // ---------- Writes ----------
 
 export const requestConnection = (clinicianId: string, note = "") =>
@@ -181,6 +201,13 @@ export const endConnection = (connectionId: string) =>
 
 export const sendMessage = (connectionId: string, body: string) =>
   apiJson<Message>(`/connections/${connectionId}/messages`, { method: "POST", body: JSON.stringify({ body }) });
+
+export const sendVoiceMessage = (connectionId: string, audio: Blob) =>
+  apiJson<Message>(`/connections/${connectionId}/voice`, {
+    method: "POST",
+    headers: { "Content-Type": audio.type || "audio/webm" },
+    body: audio,
+  });
 
 export const markThreadRead = (connectionId: string) =>
   apiJson<void>(`/connections/${connectionId}/read`, { method: "POST" });
@@ -215,6 +242,13 @@ export const askAgent = (patientId: string, question: string) =>
     body: JSON.stringify({ patientId, question }),
   });
 
+/** Ask a general research question before opening a patient record. */
+export const askResearchAgent = (question: string, history: ChatTurn[] = []) =>
+  apiJson<ResearchAgentReply>("/clinician/research-chat", {
+    method: "POST",
+    body: JSON.stringify({ question, history }),
+  });
+
 /** Save a draft summary. It stays in_review until a clinician approves it. */
 export const createSummary = (patientId: string, draft: SummaryDraft) =>
   apiJson<{ id: string; status: string }>(`/patients/${patientId}/summaries`, {
@@ -224,6 +258,30 @@ export const createSummary = (patientId: string, draft: SummaryDraft) =>
 
 export const approveSummary = (patientId: string, summaryId: string) =>
   apiJson<unknown>(`/patients/${patientId}/summaries/${summaryId}/approve`, { method: "POST" });
+
+function readAsBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const value = String(reader.result ?? "");
+      resolve(value.includes(",") ? value.split(",")[1] : value);
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Could not read the file"));
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function uploadPatientFile(patientId: string, file: File, label = "") {
+  return apiJson<PatientFile>(`/patients/${patientId}/files`, {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      fileType: file.type || "application/octet-stream",
+      contentBase64: await readAsBase64(file),
+      label,
+    }),
+  });
+}
 
 // ---------- Reading another patient's record (clinician side) ----------
 // The patient app reads its own record through lib/patient-api; a clinician

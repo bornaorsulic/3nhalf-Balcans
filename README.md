@@ -7,8 +7,9 @@ hackathon: an evidence-grounded Health Agent with two views of the same patient.
   sources, health data in plain language, doctors, messages, appointments, and an
   inbox of clinician-approved summaries.
 - `/clinician` — clinician desktop: patient roster, requests, patient record with an
-  **Ask** tab for the Health Agent, summary editing, messaging, and a calendar driven
-  by a weekly template.
+  evidence-backed research chat before patient selection, patient record with an
+  **Ask** tab for the Health Agent, an all-patient inbox, file uploads, summary editing,
+  messaging, and a calendar driven by a weekly template.
 - `/login`, `/register` — accounts for patients and doctors.
 
 ## Setup
@@ -78,6 +79,8 @@ NEBIUS_API_KEY=...
 NEBIUS_MODEL=...
 AMASS_API_KEY=...
 AMASS_BASE_URL=...
+ELEVENLABS_API_KEY=...
+ELEVENLABS_VOICE_ID=...
 ```
 
 See [.env.example](.env.example) and [docs/DATABASE.md](docs/DATABASE.md).
@@ -155,9 +158,14 @@ docs/                 API, database, accounts and Health Agent documentation
 | Accounts | Email + password, sessions, invite-only doctor accounts, profile with time zone and clock |
 | Care network | N:N connections: request, invite, accept, reject, disconnect |
 | Calendar | Weekly template generating eight weeks; week grid with month view; patient books from a month calendar |
-| Messaging | Doctor ↔ patient threads with unread counts |
+| Messaging | Doctor-patient threads with unread counts, voice notes, and text-to-speech playback |
+| Clinician inbox | All patient message threads in one doctor view, linked beside Calendar |
+| File uploads | Patients and doctors can attach blood work, reports and documents to a patient record |
+| Wearables | Profile settings include a prototype watch/ring connection option |
 | Summaries | Clinician edits with a version trail; only approved text reaches the patient |
 | Health Agent | Both views can ask: the patient in plain language, the doctor with risk signals, citations and a one-click patient draft |
+| Research chat | Doctors can ask general study questions before choosing a patient; Amass retrieves evidence and Nebius synthesizes it with citations |
+| Voice | ElevenLabs transcription/TTS for patient chat, clinician Ask, research chat, summaries and message threads; browser speech synthesis is used as a text playback fallback |
 | Nebius | Not connected: `backend/agent.py` is a scripted stand-in with the final reply shape — see [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
 | Amass | Not connected: `research_sources` holds the papers the demo cites, with DOIs |
 

@@ -43,6 +43,21 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _ensure_file_schema() -> None:
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS content BYTEA;")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS purpose VARCHAR(40);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS cache_key VARCHAR(255);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS uploaded_by_role VARCHAR(20);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS label TEXT;")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;")
+        cursor.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS files_patient_cache_idx ON files (patient_id, cache_key) WHERE cache_key IS NOT NULL;"
+        )
+        connection.commit()
+
+
 # ---------- Patient ----------
 
 
@@ -272,6 +287,46 @@ def remove_question(patient_id: str, question_id: str) -> None:
             (question_id, patient_id),
         )
         connection.commit()
+
+
+# ---------- Patient files ----------
+
+
+def get_files(patient_id: str) -> list[dict]:
+    _ensure_file_schema()
+    rows = _query(
+        """
+        SELECT * FROM files
+        WHERE patient_id = %s AND COALESCE(purpose, 'upload') = 'upload'
+        ORDER BY created_at DESC, id DESC;
+        """,
+        (patient_id,),
+    )
+    return [models.patient_file(row) for row in rows]
+
+
+def add_file(
+    patient_id: str,
+    *,
+    filename: str,
+    file_type: str,
+    file_path: str,
+    uploaded_by_role: str,
+    label: str = "",
+) -> dict:
+    _ensure_file_schema()
+    with connect() as connection, connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO files (patient_id, filename, file_type, file_path, uploaded_by_role, label, purpose, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s, 'upload', %s)
+            RETURNING *;
+            """,
+            (patient_id, filename, file_type, file_path, uploaded_by_role, label, _now()),
+        )
+        row = cursor.fetchone()
+        connection.commit()
+    return models.patient_file(row)
 
 
 # ---------- Research (Amass stand-in) ----------

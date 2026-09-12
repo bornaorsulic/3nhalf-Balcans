@@ -30,6 +30,17 @@ def research_query(question: str) -> str:
     chosen = [query for pattern, query in TOPICS.values() if re.search(pattern, question, re.I)]
     return ' '.join(chosen[:2]) or 'sleep metabolic health lifestyle prevention'
 
+def public_research_query(question: str) -> str:
+    """Research-only chat may use the doctor's topic, but strips obvious identifiers."""
+    chosen = [query for pattern, query in TOPICS.values() if re.search(pattern, question, re.I)]
+    scrubbed = re.sub(r'\b[\w.+-]+@[\w.-]+\.\w+\b', ' ', question)
+    scrubbed = re.sub(r'\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+){1,3}\b', ' ', scrubbed)
+    scrubbed = re.sub(r'\b\d{2,}\b', ' ', scrubbed)
+    terms = re.sub(r'[^a-zA-Z0-9\s-]', ' ', scrubbed).lower()
+    words = [word for word in terms.split() if len(word) > 3]
+    query = ' '.join([*chosen[:2], *words[:12]]).strip()
+    return query[:180] or 'sleep metabolic health lifestyle prevention'
+
 def safe_url(value) -> str | None:
     if not isinstance(value, str) or len(value) > 2000:
         return None

@@ -29,10 +29,16 @@ export interface SessionUser {
 }
 
 export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+  const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
+  const headers = new Headers(init.headers);
+  if (!isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
   return fetch(`${API_BASE_URL.replace(/\/$/, "")}${path}`, {
     ...init,
     credentials: "include",
-    headers: { "Content-Type": "application/json", ...init.headers },
+    headers,
   });
 }
 

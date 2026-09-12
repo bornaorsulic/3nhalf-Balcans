@@ -22,16 +22,24 @@ example data.
 | GET | `/patients/{id}/labs` | – | `LabResult[]` |
 | GET | `/patients/{id}/wearables?days=30` | – | `WearableSeries` |
 | GET | `/patients/{id}/genetics` | – | `GeneticFinding[]` |
+| GET | `/patients/{id}/files` | – | Uploaded patient files |
+| POST | `/patients/{id}/files` | `{ filename, fileType, contentBase64, label }` | Uploaded patient file metadata |
 | GET | `/patients/{id}/diary` | – | `DiaryEntry[]` (newest first) |
 | POST | `/patients/{id}/diary` | `DiaryEntryInput` | `DiaryEntry` |
 | POST | `/patients/{id}/chat` | `ChatRequest` | `AgentReply` |
+| POST | `/voice/transcribe` | raw `audio/webm` body | `{ text }` |
+| POST | `/voice/speak` | `{ text, patientId? }` | `audio/mpeg` |
 | GET | `/patients/{id}/summaries` | – | `ClinicianSummary[]` (newest first) |
 | POST | `/patients/{id}/summaries/{summaryId}/read` | – | `204` |
+| GET | `/patients/{id}/summaries/{summaryId}/audio` | – | `audio/mpeg` for approved summaries |
 | GET | `/patients/{id}/appointment-questions` | – | `AppointmentQuestion[]` |
 | POST | `/patients/{id}/appointment-questions` | `{ text, origin }` | `AppointmentQuestion` |
 | DELETE | `/patients/{id}/appointment-questions/{questionId}` | – | `204` |
 | POST | `/patients/{id}/summaries/{summaryId}/approve` | `{ clinicianId? }` | `PatientSummary` |
 | GET | `/research?q=&limit=` | – | `Source[]` (research evidence) |
+
+Doctor-patient messages also support voice notes through `POST /connections/{connectionId}/voice` with a raw browser audio body.
+The returned `Message` includes `attachment: { id, contentType }`, and `GET /files/{id}` streams that voice note only to the connected patient or clinician.
 
 ## Chat: what the app expects from the Health Agent
 

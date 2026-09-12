@@ -8,10 +8,12 @@ import { RichText } from "@/components/patient/rich-text";
 import { SafetyBanner } from "@/components/patient/safety-banner";
 import { SourceList } from "@/components/patient/source-list";
 import { Chip, cx } from "@/components/patient/ui";
+import { SpeakButton, VoiceRecorder } from "@/components/voice-controls";
 import { getApi } from "@/lib/patient-api";
 import { useAppointmentQuestions } from "@/lib/patient-api/hooks";
 import type { AgentReply, ChatTurn } from "@/lib/patient-api/types";
 import { checkForUrgentSymptoms } from "@/lib/safety";
+import { transcribeVoice } from "@/lib/voice";
 import { useIsClient } from "@/hooks/use-is-client";
 
 interface Message {
@@ -171,6 +173,13 @@ function Chat() {
             placeholder="Ask about your health…"
             className="max-h-32 min-h-11 flex-1 resize-none rounded-control border border-line bg-surface px-3.5 py-2.5 text-[15px] text-ink placeholder:text-ink-muted focus:border-primary focus:outline-none [field-sizing:content]"
           />
+          <VoiceRecorder
+            disabled={pending}
+            onComplete={async (audio) => {
+              const text = await transcribeVoice(audio);
+              setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+            }}
+          />
           <button
             type="submit"
             disabled={!draft.trim() || pending}
@@ -241,6 +250,7 @@ function AssistantBubble({
           </div>
         )}
         <RichText text={message.content} />
+        {!message.failed && <SpeakButton text={message.content} patientId="me" />}
         {message.failed && (
           <button type="button" onClick={onRetry} className="mt-2 text-sm font-semibold text-primary">
             Try again

@@ -77,3 +77,17 @@ export type ClinicianAgentReply = {
   /** Null when the record holds nothing to summarise yet. */
   draftSummary: SummaryDraft | null;
 };
+
+/** General clinician research chat, not tied to a patient record. */
+export type ResearchAgentReply = {
+  id: string;
+  generatedAt: string;
+  /** Light markdown: paragraphs, "- " bullet lines, **bold**. */
+  answer: string;
+  keyTakeaways: string[];
+  studyNotes: string[];
+  followUpQuestions: string[];
+  citations: EvidenceCitation[];
+  confidence: "high" | "moderate" | "low";
+  safetyNote: string;
+};

@@ -6,6 +6,7 @@ import { Check, CheckCircle2, Plus } from "lucide-react";
 import { PageHeader } from "@/components/patient/page-header";
 import { SourceList } from "@/components/patient/source-list";
 import { Card, LoadingCards, SectionTitle } from "@/components/patient/ui";
+import { SpeakButton } from "@/components/voice-controls";
 import { getApi } from "@/lib/patient-api";
 import { useAppointmentQuestions, useSummaries } from "@/lib/patient-api/hooks";
 import { formatLongDate } from "@/lib/dates";
@@ -49,6 +50,10 @@ export default function SummaryPage() {
     <div className="pb-8">
       <PageHeader title={summary.title} backHref="/patient/inbox" />
       <div className="px-5">
+        <SpeakButton
+          summary={{ patientId: "me", summaryId: summary.id }}
+          fallbackText={[summary.title, body.whatWeSee, body.whatItMeans, ...body.nextSteps].join("\n\n")}
+        />
         <div className="flex items-center gap-2.5 rounded-control bg-good-soft p-3 text-sm">
           <CheckCircle2 aria-hidden className="size-5 shrink-0 text-good" />
           <p className="text-ink">

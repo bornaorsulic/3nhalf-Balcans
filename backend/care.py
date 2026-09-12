@@ -21,6 +21,7 @@ from backend.database import connect  # noqa: E402
 from backend.models import iso_time  # noqa: E402
 
 ACTIVE = "accepted"
+_AUDIO_SCHEMA_READY = False
 
 
 def _now() -> datetime:
@@ -44,6 +45,21 @@ def _execute(sql: str, params: tuple = ()) -> dict | None:
         row = cursor.fetchone() if cursor.description else None
         connection.commit()
         return row
+
+
+def _ensure_audio_schema() -> None:
+    global _AUDIO_SCHEMA_READY
+    if _AUDIO_SCHEMA_READY:
+        return
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS content BYTEA;")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS purpose VARCHAR(40);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS cache_key VARCHAR(255);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS uploaded_by_role VARCHAR(20);")
+        cursor.execute("ALTER TABLE files ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP;")
+        cursor.execute("ALTER TABLE messages ADD COLUMN IF NOT EXISTS attachment_file_id INTEGER REFERENCES files(id) ON DELETE SET NULL;")
+        connection.commit()
+    _AUDIO_SCHEMA_READY = True
 
 
 class CareError(Exception):
@@ -330,7 +346,7 @@ def accepted_patient_ids(clinician_id: str) -> list[str]:
 
 
 def message_json(row: dict) -> dict:
-    return {
+    result = {
         "id": row["id"],
         "connectionId": row["connection_id"],
         "senderRole": row["sender_role"],
@@ -338,11 +354,24 @@ def message_json(row: dict) -> dict:
         "createdAt": iso_time(row["created_at"]),
         "readAt": iso_time(row.get("read_at")),
     }
+    if row.get("attachment_file_id"):
+        result["attachment"] = {
+            "id": row["attachment_file_id"],
+            "contentType": row.get("attachment_file_type") or "audio/webm",
+        }
+    return result
 
 
 def list_messages(connection_id: str) -> list[dict]:
+    _ensure_audio_schema()
     rows = _query(
-        "SELECT * FROM messages WHERE connection_id = %s ORDER BY created_at;",
+        """
+        SELECT m.*, f.file_type AS attachment_file_type
+        FROM messages m
+        LEFT JOIN files f ON f.id = m.attachment_file_id
+        WHERE m.connection_id = %s
+        ORDER BY m.created_at;
+        """,
         (connection_id,),
     )
     return [message_json(row) for row in rows]
@@ -366,6 +395,64 @@ def send_message(connection_id: str, *, sender_role: str, sender_user_id: str, b
         (f"msg-{uuid.uuid4().hex[:10]}", connection_id, sender_role, sender_user_id, body.strip()),
     )
     return message_json(row)
+
+
+def send_voice_note(connection_id: str, *, sender_role: str, sender_user_id: str, audio: bytes, content_type: str) -> dict:
+    _ensure_audio_schema()
+    connection = get_connection(connection_id)
+    if not connection or connection["status"] != ACTIVE:
+        raise CareError("You can only message an active connection.")
+    if not audio:
+        raise CareError("The voice note is empty.")
+
+    with connect() as database, database.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            INSERT INTO files (patient_id, filename, file_type, content, purpose, uploaded_by_role)
+            VALUES (%s, %s, %s, %s, 'voice_note', %s)
+            RETURNING id, file_type;
+            """,
+            (connection["patient_id"], "voice-note.webm", content_type or "audio/webm", audio, sender_role),
+        )
+        file_row = cursor.fetchone()
+        cursor.execute(
+            """
+            INSERT INTO messages (id, connection_id, sender_role, sender_user_id, body, attachment_file_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING *;
+            """,
+            (f"msg-{uuid.uuid4().hex[:10]}", connection_id, sender_role, sender_user_id, "Voice note", file_row["id"]),
+        )
+        row = cursor.fetchone()
+        database.commit()
+    row["attachment_file_id"] = file_row["id"]
+    row["attachment_file_type"] = file_row["file_type"]
+    return message_json(row)
+
+
+def file_for_user(file_id: int, user: dict) -> dict | None:
+    _ensure_audio_schema()
+    row = _one(
+        """
+        SELECT f.*, m.connection_id, c.clinician_id, c.status
+        FROM files f
+        LEFT JOIN messages m ON m.attachment_file_id = f.id
+        LEFT JOIN care_connections c ON c.id = m.connection_id
+        WHERE f.id = %s;
+        """,
+        (file_id,),
+    )
+    if not row:
+        return None
+    if row.get("purpose") != "voice_note" or not row.get("connection_id"):
+        return None
+    if row.get("status") != ACTIVE:
+        return None
+    if user["role"] == "patient" and row["patient_id"] != user.get("patient_id"):
+        return None
+    if user["role"] == "clinician" and not has_access(user["clinician_id"], row["patient_id"]):
+        return None
+    return row
 
 
 def unread_count(connection_id: str, reader_role: str) -> int:

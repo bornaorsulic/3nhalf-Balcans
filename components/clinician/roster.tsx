@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 
+import { ResearchChat } from "@/components/clinician/research-chat";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +93,12 @@ export function ConnectedRoster() {
                 Calendar
               </Link>
             </Button>
+            <Button variant="secondary" asChild className="gap-2">
+              <Link href="/clinician/inbox">
+                <Mail className="size-4" />
+                Inbox{unread > 0 ? ` (${unread})` : ""}
+              </Link>
+            </Button>
             {user && (
               <Link
                 href="/clinician/profile"
@@ -104,6 +111,8 @@ export function ConnectedRoster() {
             )}
           </div>
         </header>
+
+        <ResearchChat />
 
         <section className="grid gap-4 md:grid-cols-3">
           <StatTile label="Your patients" value={accepted.length} icon={<Users className="size-4 text-primary" />} />

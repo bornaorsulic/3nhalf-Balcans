@@ -210,6 +210,23 @@ Two different things, easy to conflate:
 So generate the draft, leave it `in_review`, and let the clinician approve it. Never add
 an endpoint that returns unapproved AI text to the patient app.
 
+## Research chat before patient selection
+
+`POST /api/v1/clinician/research-chat` is a clinician-only route for general learning
+before a doctor opens a patient. It does not load patient context, create summaries, or
+send messages. The flow is:
+
+```txt
+doctor research question -> public Amass query -> retrieved papers -> Nebius synthesis
+```
+
+The response includes `answer`, `keyTakeaways`, `studyNotes`, `followUpQuestions`,
+`citations`, `confidence`, and `safetyNote`. Citation URLs still come only from
+retrieval; the model selects evidence IDs and the server attaches canonical metadata.
+
+This route is for study support, not patient-specific care. If the doctor needs a
+patient-grounded answer, they open the record and use the patient **Ask** tab instead.
+
 ## Division of labour
 
 Amass retrieval sits in Person 2's lane (see [TEAM_CONTRACT.md](../TEAM_CONTRACT.md)).

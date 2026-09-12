@@ -106,6 +106,20 @@ Required shape:
 }
 Use only citation ids that appear in RETRIEVED_EVIDENCE. If evidence is weak, use an empty citations array.'''
 
+    if title == 'ModelResearchAnswer':
+        return '''/no_think
+Return exactly one JSON object for a clinician research chat. Do not return a schema, "$defs", "properties", markdown, or prose outside JSON.
+Required shape:
+{
+  "answer": "educational synthesis for a clinician, based only on supplied research evidence",
+  "keyTakeaways": ["clinically relevant learning point"],
+  "studyNotes": ["mechanism, population, limitation, or causality note"],
+  "followUpQuestions": ["next research question to ask"],
+  "citations": [{"id": "one RETRIEVED_EVIDENCE id", "relevance": "what this evidence supports"}],
+  "confidence": "low|moderate|high"
+}
+Use only citation ids that appear in RETRIEVED_EVIDENCE. If evidence is weak, use an empty citations array and say what is missing.'''
+
     return '''/no_think
 Return exactly one JSON object for the clinician. Do not return a schema, "$defs", "properties", markdown, or prose outside JSON.
 Required shape:

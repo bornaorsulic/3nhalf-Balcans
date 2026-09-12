@@ -15,7 +15,11 @@ Access rules, enforced on every patient route:
 from __future__ import annotations
 
 import os
+import base64
+import binascii
+import re
 import sys
+import uuid
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -24,7 +28,7 @@ from pydantic import BaseModel, Field
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from backend import audit, care, retrieval, schedule, summaries as summary_edits  # noqa: E402
+from backend import audit, care, retrieval, schedule, summaries as summary_edits, voice  # noqa: E402
 from backend.health_agent import HealthAgent  # noqa: E402
 from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
@@ -61,6 +65,8 @@ app.add_middleware(
 )
 
 PREFIX = "/api/v1"
+UPLOAD_DIR = Path(os.environ.get("HEALTH_AGENT_UPLOAD_DIR", ".uploads")).resolve()
+MAX_UPLOAD_BYTES = int(os.environ.get("HEALTH_AGENT_MAX_UPLOAD_BYTES", str(20 * 1024 * 1024)))
 
 
 # ---------- Request bodies ----------
@@ -109,6 +115,18 @@ class ClinicianChatRequest(BaseModel):
     question: str
 
 
+class ResearchChatRequest(BaseModel):
+    question: str = Field(min_length=1, max_length=2000)
+    history: list[ChatTurn] = Field(default_factory=list, max_length=12)
+
+
+class FileUploadBody(BaseModel):
+    filename: str
+    fileType: str = "application/octet-stream"
+    contentBase64: str
+    label: str = ""
+
+
 class SummaryDraftBody(BaseModel):
     title: str
     whatWeSee: str
@@ -140,6 +158,11 @@ class RespondBody(BaseModel):
 
 class MessageBody(BaseModel):
     body: str
+
+
+class SpeakBody(BaseModel):
+    text: str
+    patientId: str | None = None
 
 
 class SlotBody(BaseModel):
@@ -235,6 +258,12 @@ def set_session_cookie(response: Response, token: str) -> None:
         max_age=60 * 60 * 24 * 7,
         path="/",
     )
+
+
+def safe_filename(filename: str) -> str:
+    stem = Path(filename or "upload").name
+    stem = re.sub(r"[^A-Za-z0-9._ -]", "_", stem).strip(" .")
+    return stem[:120] or "upload"
 
 
 # ---------- Health & accounts ----------
@@ -370,6 +399,44 @@ def get_genetics(patient_id: str, user: dict = Depends(current_user)) -> list[di
     return retrieval.get_genetics(resolve_patient(patient_id, user))
 
 
+@app.get(PREFIX + "/patients/{patient_id}/files")
+def get_files(patient_id: str, user: dict = Depends(current_user)) -> list[dict]:
+    return retrieval.get_files(resolve_patient(patient_id, user))
+
+
+@app.post(PREFIX + "/patients/{patient_id}/files", status_code=201)
+def upload_file(patient_id: str, body: FileUploadBody, user: dict = Depends(current_user)) -> dict:
+    pid = resolve_patient(patient_id, user)
+    try:
+        data = base64.b64decode(body.contentBase64, validate=True)
+    except (binascii.Error, ValueError) as error:
+        raise HTTPException(status_code=400, detail="The uploaded file could not be read") from error
+
+    if not data:
+        raise HTTPException(status_code=400, detail="Choose a file to upload")
+    if len(data) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=400, detail="Files must be 20 MB or smaller")
+
+    original = safe_filename(body.filename)
+    patient_dir = UPLOAD_DIR / safe_filename(pid)
+    patient_dir.mkdir(parents=True, exist_ok=True)
+    stored_name = f"{uuid.uuid4().hex[:16]}-{original}"
+    path = patient_dir / stored_name
+    path.write_bytes(data)
+
+    item = retrieval.add_file(
+        pid,
+        filename=original,
+        file_type=body.fileType or "application/octet-stream",
+        file_path=str(path),
+        uploaded_by_role=user["role"],
+        label=body.label.strip(),
+    )
+    if user["role"] == "clinician":
+        audit.log("uploaded_file", actor=user, patient_id=pid, subject_id=item["id"], detail=original)
+    return item
+
+
 @app.get(PREFIX + "/patients/{patient_id}/diary")
 def get_diary(patient_id: str, user: dict = Depends(current_user)) -> list[dict]:
     return retrieval.get_diary(resolve_patient(patient_id, user))
@@ -391,6 +458,65 @@ def chat(patient_id: str, request: ChatRequest, user: dict = Depends(current_pat
         raise HTTPException(status_code=404, detail=f"No patient '{pid}'") from error
 
 
+@app.post(PREFIX + "/voice/transcribe")
+async def transcribe_voice(request: Request, user: dict = Depends(current_user)) -> dict:
+    """Transcribe browser-recorded audio using ElevenLabs Scribe."""
+    audio = await request.body()
+    if len(audio) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Voice recordings must be 10 MB or smaller")
+    try:
+        text = voice.transcribe(audio, request.headers.get("content-type", "audio/webm"))
+    except voice.VoiceError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    return {"text": text}
+
+
+@app.post(PREFIX + "/voice/speak")
+def speak_voice(body: SpeakBody, user: dict = Depends(current_user)) -> Response:
+    """Generate or reuse speech for the signed-in patient or an allowed clinician patient."""
+    patient_id = user.get("patient_id")
+    if body.patientId:
+        patient_id = resolve_patient(body.patientId, user)
+
+    cache_key = voice.speech_cache_key(body.text)
+    if patient_id:
+        cached = voice.cached_speech(patient_id, cache_key)
+        if cached:
+            return Response(content=cached, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+    try:
+        audio = voice.speak(body.text)
+    except voice.VoiceError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+    if patient_id:
+        voice.store_speech(patient_id, cache_key, audio)
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
+@app.get(PREFIX + "/patients/{patient_id}/summaries/{summary_id}/audio")
+def speak_summary(patient_id: str, summary_id: str, user: dict = Depends(current_user)) -> Response:
+    """Speak only a currently approved patient-facing summary."""
+    pid = resolve_patient(patient_id, user)
+    summary = next((item for item in retrieval.get_summaries(pid) if item["id"] == summary_id), None)
+    if not summary or summary["status"] != "approved" or not summary.get("body"):
+        raise HTTPException(status_code=404, detail="That approved summary does not exist")
+
+    body = summary["body"]
+    text = "\n\n".join([summary["title"], body["whatWeSee"], body["whatItMeans"], *body.get("nextSteps", [])])
+    cache_key = voice.speech_cache_key(text)
+    cached = voice.cached_speech(pid, cache_key)
+    if cached:
+        return Response(content=cached, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+    try:
+        audio = voice.speak(text)
+    except voice.VoiceError as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+    voice.store_speech(pid, cache_key, audio)
+    return Response(content=audio, media_type="audio/mpeg", headers={"Cache-Control": "private, max-age=3600"})
+
+
 @app.post(PREFIX + "/clinician/chat")
 def clinician_chat(body: ClinicianChatRequest, user: dict = Depends(current_clinician)) -> dict:
     """The doctor asks about a patient they are connected to.
@@ -407,6 +533,17 @@ def clinician_chat(body: ClinicianChatRequest, user: dict = Depends(current_clin
     # The patient can see that their record was queried, and what was asked.
     audit.log("asked_agent", actor=user, patient_id=pid, detail=body.question[:200])
     return reply
+
+
+@app.post(PREFIX + "/clinician/research-chat")
+def clinician_research_chat(body: ResearchChatRequest, user: dict = Depends(current_clinician)) -> dict:
+    """General research chat for doctors before opening a patient record.
+
+    This route does not load a patient and does not create summaries or messages.
+    It sends a public research topic to Amass, then asks Nebius to synthesize only
+    the retrieved evidence into an educational answer.
+    """
+    return health_agent.research_answer(body.question, [turn.model_dump() for turn in body.history])
 
 
 @app.post(PREFIX + "/patients/{patient_id}/summaries", status_code=201)
@@ -599,6 +736,36 @@ def send_message(connection_id: str, body: MessageBody, user: dict = Depends(cur
     if user["role"] == "clinician":
         audit.log("messaged_patient", actor=user, patient_id=connection["patient_id"])
     return message
+
+
+@app.post(PREFIX + "/connections/{connection_id}/voice")
+async def send_voice_message(connection_id: str, request: Request, user: dict = Depends(current_user)) -> dict:
+    """Store a voice note and its message atomically for an active thread."""
+    connection = connection_for_user(connection_id, user)
+    audio = await request.body()
+    if len(audio) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Voice notes must be 10 MB or smaller")
+    try:
+        message = care.send_voice_note(
+            connection_id,
+            sender_role=user["role"],
+            sender_user_id=user["id"],
+            audio=audio,
+            content_type=request.headers.get("content-type", "audio/webm"),
+        )
+    except care.CareError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if user["role"] == "clinician":
+        audit.log("messaged_patient", actor=user, patient_id=connection["patient_id"], detail="Voice note")
+    return message
+
+
+@app.get(PREFIX + "/files/{file_id}")
+def get_file(file_id: int, user: dict = Depends(current_user)) -> Response:
+    file = care.file_for_user(file_id, user)
+    if not file or file.get("purpose") != "voice_note" or not file.get("content"):
+        raise HTTPException(status_code=404, detail="That audio file does not exist")
+    return Response(content=bytes(file["content"]), media_type=file.get("file_type") or "audio/webm")
 
 
 @app.post(PREFIX + "/connections/{connection_id}/read", status_code=204)

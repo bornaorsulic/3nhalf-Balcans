@@ -78,12 +78,12 @@ Two file formats are supported by the ingest script:
 | `summary_sources` | The sources behind each summary (patient data, research, clinician). |
 | `appointment_questions` | Questions for the next visit, with who added them. |
 | `research_sources` | Research evidence (Amass stand-in) with DOI links. |
-| `files` | Uploaded patient files (metadata only). |
+| `files` | Uploaded patient files, voice notes, and cached generated speech. Upload metadata points to the backend upload directory; voice/TTS rows store private audio bytes. |
 | `users` | Accounts: email, password hash, role, and the patient or clinician they are. |
 | `sessions` | Signed-in sessions (the cookie's token). |
 | `invite_codes` | Codes that allow creating a doctor account. |
 | `care_connections` | Which doctor and patient are connected, and the request lifecycle. |
-| `messages` | Doctor–patient conversation, one thread per connection. |
+| `messages` | Doctor-patient conversation, one thread per connection, with optional voice-note attachments. |
 | `availability_rules` | The doctor's weekly template ("every Tuesday 09:00–12:00"). |
 | `availability_slots` | Concrete bookable times, generated from the template or added one-off (`source`). |
 | `summary_versions` | Every version of a patient-facing summary, AI or clinician. |

@@ -15,8 +15,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { RichText } from "@/components/patient/rich-text";
+import { SpeakButton, VoiceRecorder } from "@/components/voice-controls";
 import { askAgent, createSummary, sendMessage } from "@/lib/care-api";
 import { formatTime } from "@/lib/dates";
+import { transcribeVoice } from "@/lib/voice";
 import { useIsClient } from "@/hooks/use-is-client";
 import type { ClinicianAgentReply, EvidenceCitation, PatientPriority, SourceLabel } from "@/lib/types";
 
@@ -211,6 +213,13 @@ function Chat({
           placeholder="Ask about this patient — risks, trends, what to check before the visit…"
           className="flex-1 resize-none"
         />
+        <VoiceRecorder
+          disabled={pending}
+          onComplete={async (audio) => {
+            const text = await transcribeVoice(audio);
+            setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
+          }}
+        />
         <Button type="submit" disabled={!draft.trim() || pending}>
           <Send className="size-4" /> Ask
         </Button>
@@ -237,6 +246,7 @@ function Answer({
   return (
     <section className="rounded-lg border bg-card p-5 shadow-sm">
       <RichText text={reply.answer} />
+      <SpeakButton text={reply.answer} patientId={patientId} />
 
       {reply.riskSignals.length > 0 && (
         <div className="mt-5 space-y-3">

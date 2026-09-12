@@ -178,3 +178,15 @@ def research_source(row: dict) -> dict:
     if row.get("url"):
         item["url"] = row["url"]
     return item
+
+
+def patient_file(row: dict) -> dict:
+    return {
+        "id": str(row["id"]),
+        "patientId": row["patient_id"],
+        "filename": row.get("filename") or "Uploaded file",
+        "fileType": row.get("file_type") or "application/octet-stream",
+        "uploadedAt": iso_time(row.get("created_at")),
+        "uploadedByRole": row.get("uploaded_by_role") or "unknown",
+        "label": row.get("label") or "",
+    }

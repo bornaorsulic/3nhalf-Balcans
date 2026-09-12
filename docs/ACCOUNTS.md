@@ -85,6 +85,11 @@ One thread per connection. A message is unread for the other side until that sid
 opens the thread (`POST /connections/{id}/read`). Threads poll every few seconds, so
 a new message appears without a refresh.
 
+Message threads can carry voice notes. Browser audio is stored as a private `files`
+row attached to the message, and only the connected patient or clinician can stream
+it back. AI chat and summaries use ElevenLabs for dictation and generated speech when
+`ELEVENLABS_API_KEY` is configured.
+
 Doctor–patient messages are deliberately **separate from the Health Agent chat**: in a
 medical product it has to be obvious whether a human or a model answered.
 
@@ -138,7 +143,9 @@ GET    /api/v1/doctors?q=
 GET    /api/v1/connections
 POST   /api/v1/connections/request | /connections/invite
 POST   /api/v1/connections/{id}/respond | /{id}/end
-GET    /api/v1/connections/{id}/messages     POST same path      POST /{id}/read
+GET    /api/v1/connections/{id}/messages     POST same path      POST /{id}/voice      POST /{id}/read
+POST   /api/v1/voice/transcribe              POST /voice/speak   GET /files/{fileId}
+GET    /api/v1/patients/{id}/files           POST same path      (patient or connected clinician)
 GET    /api/v1/clinicians/{id}/slots?only_open=&days=
 POST   /api/v1/clinician/slots               DELETE /clinician/slots/{id}      (delete or block)
 POST   /api/v1/clinician/slots/{id}/unblock
@@ -147,6 +154,7 @@ DELETE /api/v1/clinician/availability-rules/{id}
 GET    /api/v1/appointments                  POST /appointments
 POST   /api/v1/appointments/{id}/cancel | /{id}/reschedule
 POST   /api/v1/clinician/chat                                    (ask the agent about a patient)
+POST   /api/v1/clinician/research-chat                           (general research chat, no patient)
 POST   /api/v1/patients/{id}/summaries                           (save a draft, clinician)
 PUT    /api/v1/patients/{id}/summaries/{summaryId}               (edit, clinician)
 GET    /api/v1/patients/{id}/summaries/{summaryId}/versions

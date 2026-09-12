@@ -33,6 +33,14 @@ class ModelAnswer(StrictModel):
     citations: list[EvidenceSelection] = Field(max_length=6)
     confidence: Confidence
 
+class ModelResearchAnswer(StrictModel):
+    answer: Text
+    keyTakeaways: list[Short] = Field(min_length=1, max_length=5)
+    studyNotes: list[Short] = Field(max_length=6)
+    followUpQuestions: list[Short] = Field(max_length=6)
+    citations: list[EvidenceSelection] = Field(max_length=6)
+    confidence: Confidence
+
 class Citation(StrictModel):
     id: Short
     title: Text
@@ -56,6 +64,18 @@ class ClinicianChatResponse(StrictModel):
     confidence: Confidence
     safetyNote: str
     draftSummary: dict | None = None
+    generation: GenerationInfo
+
+class ResearchChatResponse(StrictModel):
+    id: str
+    generatedAt: str
+    answer: Text
+    keyTakeaways: list[Short]
+    studyNotes: list[Short]
+    followUpQuestions: list[Short]
+    citations: list[Citation]
+    confidence: Confidence
+    safetyNote: str
     generation: GenerationInfo
 
 class DraftBody(StrictModel):
