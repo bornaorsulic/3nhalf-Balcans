@@ -22,7 +22,7 @@ import {
   type Appointment,
   type Slot,
 } from "@/lib/care-api";
-import { addDays, formatDay, formatTime, parseDate, startOfWeek, toISODate } from "@/lib/dates";
+import { addDays, formatDay, formatTime, parseDate, startOfWeek, toISODate, zonedDay } from "@/lib/dates";
 import { isMockMode, useRequireRole } from "@/lib/session";
 
 const WEEKDAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
@@ -46,12 +46,12 @@ export default function ClinicianCalendarPage() {
     const byDay: Record<string, DayCounts> = {};
     for (const slot of slots ?? []) {
       if (slot.status !== "open") continue;
-      const key = toISODate(parseDate(slot.startsAt));
+      const key = zonedDay(slot.startsAt);
       byDay[key] = { free: (byDay[key]?.free ?? 0) + 1, booked: byDay[key]?.booked ?? 0 };
     }
     for (const appointment of appointments ?? []) {
       if (appointment.status !== "booked") continue;
-      const key = toISODate(parseDate(appointment.startsAt));
+      const key = zonedDay(appointment.startsAt);
       byDay[key] = { free: byDay[key]?.free ?? 0, booked: (byDay[key]?.booked ?? 0) + 1 };
     }
     return byDay;

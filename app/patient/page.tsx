@@ -25,13 +25,14 @@ export default function HomePage() {
             </h1>
           </div>
           <div className="flex flex-col items-end gap-1.5">
-            <span
-              aria-hidden
-              className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary"
+            <Link
+              href="/patient/profile"
+              aria-label="Your profile and settings"
+              className="flex size-10 items-center justify-center rounded-full bg-primary-soft text-sm font-semibold text-primary transition-colors hover:bg-primary-soft/70"
             >
               {profile.firstName[0]}
               {profile.lastName[0]}
-            </span>
+            </Link>
             {API_MODE === "mock" && (
               <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-medium text-ink-muted">Demo data</span>
             )}

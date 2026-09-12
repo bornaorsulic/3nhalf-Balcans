@@ -220,7 +220,53 @@ def public_user(user: dict) -> dict:
         "displayName": user.get("display_name") or "",
         "patientId": user.get("patient_id"),
         "clinicianId": user.get("clinician_id"),
+        "timeZone": user.get("time_zone"),
+        "timeFormat": user.get("time_format") or "24h",
     }
+
+
+def update_preferences(
+    user_id: str,
+    *,
+    display_name: str | None = None,
+    time_zone: str | None = None,
+    time_format: str | None = None,
+) -> dict:
+    """Name and display preferences. Only the fields given are changed."""
+    if time_format and time_format not in ("12h", "24h"):
+        raise RegistrationError("Time format must be 12h or 24h.")
+
+    with connect() as connection, connection.cursor(row_factory=dict_row) as cursor:
+        cursor.execute(
+            """
+            UPDATE users
+            SET display_name = COALESCE(%s, display_name),
+                time_zone = COALESCE(%s, time_zone),
+                time_format = COALESCE(%s, time_format)
+            WHERE id = %s
+            RETURNING *;
+            """,
+            (display_name, time_zone, time_format, user_id),
+        )
+        row = cursor.fetchone()
+        connection.commit()
+    return row
+
+
+def change_password(user_id: str, current_password: str, new_password: str) -> None:
+    """Requires the current password, so a borrowed session cannot lock someone out."""
+    if len(new_password) < 8:
+        raise RegistrationError("The new password must be at least 8 characters.")
+
+    user = _query_one("SELECT * FROM users WHERE id = %s;", (user_id,))
+    if not user or not verify_password(current_password, user["password_hash"]):
+        raise RegistrationError("Your current password is not correct.")
+
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s;", (hash_password(new_password), user_id))
+        # Signing out everywhere else is the safe thing to do after a password change.
+        cursor.execute("DELETE FROM sessions WHERE user_id = %s;", (user_id,))
+        connection.commit()
 
 
 # ---------- FastAPI dependencies ----------

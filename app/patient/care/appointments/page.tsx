@@ -18,7 +18,7 @@ import {
   useSlots,
   type Appointment,
 } from "@/lib/care-api";
-import { addDays, formatDay, formatRelativeDay, formatTime, parseDate, toISODate } from "@/lib/dates";
+import { addDays, formatDay, formatRelativeDay, formatTime, parseDate, zonedDay } from "@/lib/dates";
 import { isMockMode } from "@/lib/session";
 
 const HORIZON_DAYS = 63;
@@ -42,14 +42,14 @@ export default function AppointmentsPage() {
   const counts = useMemo(() => {
     const byDay: Record<string, DayCounts> = {};
     for (const slot of slots ?? []) {
-      const key = toISODate(parseDate(slot.startsAt));
+      const key = zonedDay(slot.startsAt);
       byDay[key] = { free: (byDay[key]?.free ?? 0) + 1, booked: 0 };
     }
     return byDay;
   }, [slots]);
 
   const daySlots = useMemo(
-    () => (slots ?? []).filter((slot) => toISODate(parseDate(slot.startsAt)) === selectedDay),
+    () => (slots ?? []).filter((slot) => zonedDay(slot.startsAt) === selectedDay),
     [slots, selectedDay],
   );
 
@@ -158,26 +158,39 @@ export default function AppointmentsPage() {
               </p>
             )}
 
-            {accepted.length > 1 && !rescheduling && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {accepted.map((connection) => (
-                  <button
-                    key={connection.id}
-                    type="button"
-                    onClick={() => { setDoctorId(connection.clinicianId); setSelectedDay(null); }}
-                    aria-pressed={selectedDoctor === connection.clinicianId}
-                    className={cx(
-                      "min-h-9 rounded-full border px-3.5 text-sm transition-colors",
-                      selectedDoctor === connection.clinicianId
-                        ? "border-primary bg-primary text-on-primary"
-                        : "border-line bg-surface text-ink-secondary",
-                    )}
-                  >
-                    {connection.clinician?.name}
-                  </button>
-                ))}
+            <div className="mb-3">
+              <p className="mb-1.5 px-1 text-xs font-medium text-ink-muted">
+                {rescheduling ? "Appointment with" : "Which doctor?"}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {accepted.map((connection) => {
+                  const active = selectedDoctor === connection.clinicianId;
+                  return (
+                    <button
+                      key={connection.id}
+                      type="button"
+                      // Rescheduling keeps the same doctor: booking with someone else is a new appointment.
+                      disabled={Boolean(rescheduling)}
+                      onClick={() => { setDoctorId(connection.clinicianId); setSelectedDay(null); }}
+                      aria-pressed={active}
+                      className={cx(
+                        "min-h-9 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60",
+                        active
+                          ? "border-primary bg-primary text-on-primary"
+                          : "border-line bg-surface text-ink-secondary hover:border-primary/40",
+                      )}
+                    >
+                      {connection.clinician?.name}
+                    </button>
+                  );
+                })}
               </div>
-            )}
+              {rescheduling && (
+                <p className="mt-1.5 px-1 text-xs text-ink-muted">
+                  To see another doctor, book a new appointment instead of moving this one.
+                </p>
+              )}
+            </div>
 
             <Card>
               {!slots ? (

@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, FileText, LogOut, MessageCircle, Stethoscope } from "lucide-react";
+import { CalendarDays, FileText, MessageCircle, Settings2, Stethoscope } from "lucide-react";
 
 import { NeedsBackend } from "@/components/patient/needs-backend";
 import { PageHeader } from "@/components/patient/page-header";
@@ -8,7 +8,7 @@ import { LinkCard, LoadingCards, StatusPill } from "@/components/patient/ui";
 import { useAppointments, useConnections } from "@/lib/care-api";
 import { formatDay, formatRelativeDay, formatTime } from "@/lib/dates";
 import { useSummaries } from "@/lib/patient-api/hooks";
-import { isMockMode, logout, useSession } from "@/lib/session";
+import { isMockMode, useSession } from "@/lib/session";
 
 export default function CarePage() {
   return (
@@ -115,21 +115,14 @@ function AccountRow() {
   if (isMockMode || !user) return null;
 
   return (
-    <div className="mt-6 flex items-center justify-between gap-3 rounded-card bg-surface px-4 py-3 shadow-card">
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-ink">{user.displayName}</p>
-        <p className="truncate text-xs text-ink-muted">{user.email}</p>
+    <LinkCard href="/patient/profile" className="mt-6">
+      <div className="flex items-center gap-2">
+        <Settings2 aria-hidden className="size-4 text-primary" />
+        <span className="font-semibold">Profile and settings</span>
       </div>
-      <button
-        type="button"
-        onClick={async () => {
-          await logout();
-          window.location.href = "/login";
-        }}
-        className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-control px-3 text-sm font-medium text-ink-muted hover:bg-surface-muted"
-      >
-        <LogOut aria-hidden className="size-4" /> Sign out
-      </button>
-    </div>
+      <p className="mt-1 truncate text-sm text-ink-muted">
+        {user.displayName} · {user.email}
+      </p>
+    </LinkCard>
   );
 }

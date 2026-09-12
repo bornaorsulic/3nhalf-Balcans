@@ -3,7 +3,7 @@
 import { Fragment, useMemo } from "react";
 import { AlertTriangle, Lock, Plus } from "lucide-react";
 
-import { addDays, formatTime, isSameDay, minutesIntoDay, parseDate, toISODate } from "@/lib/dates";
+import { addDays, formatTime, isSameDay, minutesIntoDay, toISODate, zonedDay } from "@/lib/dates";
 import type { Appointment, Slot } from "@/lib/care-api";
 
 /*
@@ -103,10 +103,9 @@ export function WeekGrid({
 
           {days.map((day) => {
             const dayKey = toISODate(day);
-            const daySlots = slots.filter((slot) => toISODate(parseDate(slot.startsAt)) === dayKey);
+            const daySlots = slots.filter((slot) => zonedDay(slot.startsAt) === dayKey);
             const dayAppointments = appointments.filter(
-              (appointment) =>
-                toISODate(parseDate(appointment.startsAt)) === dayKey && appointment.status === "booked",
+              (appointment) => zonedDay(appointment.startsAt) === dayKey && appointment.status === "booked",
             );
             const takenMinutes = new Set(dayAppointments.map((a) => minutesIntoDay(a.startsAt)));
 

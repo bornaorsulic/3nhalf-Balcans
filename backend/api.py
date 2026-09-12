@@ -30,6 +30,7 @@ from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
     RegistrationError,
     authenticate,
+    change_password,
     create_session,
     current_clinician,
     current_patient,
@@ -37,6 +38,7 @@ from backend.auth import (  # noqa: E402
     delete_session,
     public_user,
     register,
+    update_preferences,
 )
 
 ALLOWED_ORIGINS = os.environ.get(
@@ -138,6 +140,28 @@ class BookBody(BaseModel):
 
 class RescheduleBody(BaseModel):
     slotId: str
+
+
+class PreferencesBody(BaseModel):
+    displayName: str | None = None
+    timeZone: str | None = None
+    timeFormat: str | None = None
+
+
+class PasswordBody(BaseModel):
+    currentPassword: str
+    newPassword: str
+
+
+class ClinicianProfileBody(BaseModel):
+    name: str | None = None
+    role: str | None = None
+    practice: str | None = None
+    specialty: str | None = None
+    city: str | None = None
+    languages: list[str] | None = None
+    bio: str | None = None
+    acceptingNewPatients: bool | None = None
 
 
 class RuleBody(BaseModel):
@@ -245,6 +269,61 @@ def logout(request: Request, response: Response) -> Response:
 @app.get(PREFIX + "/auth/me")
 def me(user: dict = Depends(current_user)) -> dict:
     return public_user(user)
+
+
+@app.patch(PREFIX + "/auth/me")
+def update_me(body: PreferencesBody, user: dict = Depends(current_user)) -> dict:
+    try:
+        updated = update_preferences(
+            user["id"],
+            display_name=body.displayName,
+            time_zone=body.timeZone,
+            time_format=body.timeFormat,
+        )
+    except RegistrationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    return public_user(updated)
+
+
+@app.post(PREFIX + "/auth/password")
+def set_password(body: PasswordBody, response: Response, user: dict = Depends(current_user)) -> dict:
+    try:
+        change_password(user["id"], body.currentPassword, body.newPassword)
+    except RegistrationError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    # Changing the password signs out every session; keep this browser signed in.
+    set_session_cookie(response, create_session(user["id"]))
+    return {"status": "ok"}
+
+
+# ---------- Clinician's own directory profile ----------
+
+
+@app.get(PREFIX + "/clinician/profile")
+def clinician_profile(user: dict = Depends(current_clinician)) -> dict:
+    profile = care.get_clinician(user["clinician_id"])
+    if not profile:
+        raise HTTPException(status_code=404, detail="No clinician profile")
+    return profile
+
+
+@app.put(PREFIX + "/clinician/profile")
+def update_clinician_profile(body: ClinicianProfileBody, user: dict = Depends(current_clinician)) -> dict:
+    try:
+        return care.update_clinician_profile(
+            user["clinician_id"],
+            name=body.name,
+            role=body.role,
+            practice=body.practice,
+            specialty=body.specialty,
+            city=body.city,
+            languages=body.languages,
+            bio=body.bio,
+            accepting_new_patients=body.acceptingNewPatients,
+        )
+    except care.CareError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
 
 
 # ---------- Patient record ----------

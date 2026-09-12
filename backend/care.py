@@ -387,3 +387,48 @@ def mark_read(connection_id: str, reader_role: str) -> None:
         """,
         (_now(), connection_id, reader_role),
     )
+
+
+def get_clinician(clinician_id: str) -> dict | None:
+    row = _one("SELECT * FROM clinicians WHERE id = %s;", (clinician_id,))
+    return doctor_row(row) if row else None
+
+
+def update_clinician_profile(
+    clinician_id: str,
+    *,
+    name: str | None = None,
+    role: str | None = None,
+    practice: str | None = None,
+    specialty: str | None = None,
+    city: str | None = None,
+    languages: list[str] | None = None,
+    bio: str | None = None,
+    accepting_new_patients: bool | None = None,
+) -> dict:
+    """What patients see in the directory. Only the fields given are changed."""
+    import json
+
+    row = _execute(
+        """
+        UPDATE clinicians
+        SET name = COALESCE(%s, name),
+            role = COALESCE(%s, role),
+            practice = COALESCE(%s, practice),
+            specialty = COALESCE(%s, specialty),
+            city = COALESCE(%s, city),
+            languages = COALESCE(%s, languages),
+            bio = COALESCE(%s, bio),
+            accepting_new_patients = COALESCE(%s, accepting_new_patients)
+        WHERE id = %s
+        RETURNING *;
+        """,
+        (
+            name, role, practice, specialty, city,
+            json.dumps(languages) if languages is not None else None,
+            bio, accepting_new_patients, clinician_id,
+        ),
+    )
+    if not row:
+        raise CareError("That clinician profile does not exist.")
+    return doctor_row(row)

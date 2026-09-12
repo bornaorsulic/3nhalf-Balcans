@@ -104,6 +104,22 @@ status = approved  →  the patient's app shows it
 An approved summary is locked: the patient has already read it, so changing it would
 rewrite history. Write a new summary instead.
 
+## Profile and preferences
+
+Both apps open a profile from the initials in the top-right corner: the patient on Home
+(and from the Care hub), the doctor on the dashboard.
+
+| Setting | Who | What it does |
+|---|---|---|
+| **Time zone** | both | Every date and time in the app renders in this zone, defaulting to the device's. A doctor travelling still reads clinic times, and a patient abroad sees when their appointment really is. |
+| **Clock** | both | 24-hour (14:30) or 12-hour (2:30 pm). |
+| **Password** | both | Needs the current password. Changing it signs out every other session and keeps this one. |
+| **Directory profile** | doctor | Name, title, specialty, clinic, city, languages, bio and "accepting new patients" — exactly what patients search in the directory. |
+| **Who can see my data** | patient | The connected doctors, what they can see, and a one-tap disconnect. |
+
+Preferences live on the account (`users.time_zone`, `users.time_format`), so they follow
+the person between devices rather than sitting in one browser.
+
 ## Audit trail
 
 Opening a record, editing, approving, messaging, accepting or ending a connection are
@@ -116,6 +132,8 @@ All routes need the session cookie. `me` stands for the signed-in patient.
 
 ```txt
 POST   /api/v1/auth/register | /auth/login | /auth/logout        GET /auth/me
+PATCH  /api/v1/auth/me                       POST /auth/password
+GET    /api/v1/clinician/profile             PUT  /clinician/profile
 GET    /api/v1/doctors?q=
 GET    /api/v1/connections
 POST   /api/v1/connections/request | /connections/invite

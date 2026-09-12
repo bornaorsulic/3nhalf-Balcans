@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import useSWR from "swr";
 import { API_BASE_URL, API_MODE } from "@/lib/app-config";
+import { setDisplayPreferences } from "@/lib/dates";
 
 /*
  * Who is signed in.
@@ -22,6 +23,9 @@ export interface SessionUser {
   displayName: string;
   patientId: string | null;
   clinicianId: string | null;
+  /** Null means "follow this device". */
+  timeZone: string | null;
+  timeFormat: "12h" | "24h";
 }
 
 export const MOCK_SESSION: SessionUser = {
@@ -31,6 +35,8 @@ export const MOCK_SESSION: SessionUser = {
   displayName: "Sofia Lind",
   patientId: "demo",
   clinicianId: null,
+  timeZone: null,
+  timeFormat: "24h",
 };
 
 export const isMockMode = API_MODE === "mock";
@@ -61,7 +67,10 @@ async function fetchSession(): Promise<SessionUser | null> {
   const response = await apiFetch("/auth/me");
   if (response.status === 401) return null;
   if (!response.ok) throw new Error("Could not load your session");
-  return (await response.json()) as SessionUser;
+  const user = (await response.json()) as SessionUser;
+  // Every date and time in the app renders with these.
+  setDisplayPreferences(user);
+  return user;
 }
 
 export function useSession() {
@@ -109,4 +118,23 @@ export async function registerAccount(input: RegisterInput): Promise<SessionUser
 
 export async function logout(): Promise<void> {
   await apiFetch("/auth/logout", { method: "POST" });
+}
+
+export interface Preferences {
+  displayName?: string;
+  timeZone?: string | null;
+  timeFormat?: "12h" | "24h";
+}
+
+export async function savePreferences(preferences: Preferences): Promise<SessionUser> {
+  const user = await apiJson<SessionUser>("/auth/me", { method: "PATCH", body: JSON.stringify(preferences) });
+  setDisplayPreferences(user);
+  return user;
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiJson<{ status: string }>("/auth/password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
 }

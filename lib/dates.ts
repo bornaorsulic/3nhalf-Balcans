@@ -1,6 +1,33 @@
 const LOCALE = "en-GB";
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+/*
+ * Display preferences come from the signed-in account (see lib/session.tsx):
+ * the time zone every time is rendered in, and 12- or 24-hour clock. Undefined
+ * means "follow this device".
+ */
+let displayTimeZone: string | undefined;
+let displayHour12 = false;
+
+export function setDisplayPreferences(prefs: { timeZone?: string | null; timeFormat?: string | null }) {
+  displayTimeZone = prefs.timeZone || undefined;
+  displayHour12 = prefs.timeFormat === "12h";
+}
+
+export function getDisplayTimeZone(): string {
+  return displayTimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+}
+
+function withZone(options: Intl.DateTimeFormatOptions): Intl.DateTimeFormatOptions {
+  return displayTimeZone ? { ...options, timeZone: displayTimeZone } : options;
+}
+
+/** The calendar day a timestamp falls on, in the display zone: "YYYY-MM-DD". */
+export function zonedDay(value: string | Date): string {
+  const date = typeof value === "string" ? parseDate(value) : value;
+  return new Intl.DateTimeFormat("en-CA", withZone({ year: "numeric", month: "2-digit", day: "2-digit" })).format(date);
+}
+
 /** Local calendar day as YYYY-MM-DD (no UTC shift). */
 export function toISODate(date: Date): string {
   const y = date.getFullYear();
@@ -40,22 +67,22 @@ export function todayISO(): string {
 export function formatShortDate(value: string): string {
   const date = parseDate(value);
   const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString(LOCALE, { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+  return date.toLocaleDateString(LOCALE, withZone({ day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) }));
 }
 
 /** "Mon, 8 Sep" */
 export function formatDay(value: string): string {
-  return parseDate(value).toLocaleDateString(LOCALE, { weekday: "short", day: "numeric", month: "short" });
+  return parseDate(value).toLocaleDateString(LOCALE, withZone({ weekday: "short", day: "numeric", month: "short" }));
 }
 
 /** "8 September 2026" */
 export function formatLongDate(value: string): string {
-  return parseDate(value).toLocaleDateString(LOCALE, { day: "numeric", month: "long", year: "numeric" });
+  return parseDate(value).toLocaleDateString(LOCALE, withZone({ day: "numeric", month: "long", year: "numeric" }));
 }
 
-/** "10:30" */
+/** "10:30", or "10:30 am" when the account prefers a 12-hour clock. */
 export function formatTime(value: string): string {
-  return parseDate(value).toLocaleTimeString(LOCALE, { hour: "2-digit", minute: "2-digit" });
+  return parseDate(value).toLocaleTimeString(LOCALE, withZone({ hour: "2-digit", minute: "2-digit", hour12: displayHour12 }));
 }
 
 /** "today" / "yesterday" / "3 days ago" / "in 7 days" / falls back to a date. */
@@ -100,12 +127,31 @@ export function isSameDay(a: Date, b: Date): boolean {
 /** Minutes since local midnight — where a time sits in a day column. */
 export function minutesIntoDay(value: string | Date): number {
   const date = typeof value === "string" ? parseDate(value) : value;
-  return date.getHours() * 60 + date.getMinutes();
+  const parts = new Intl.DateTimeFormat("en-GB", withZone({ hour: "2-digit", minute: "2-digit", hour12: false }))
+    .formatToParts(date)
+    .reduce<Record<string, string>>((all, part) => ({ ...all, [part.type]: part.value }), {});
+  return Number(parts.hour) * 60 + Number(parts.minute);
 }
 
 /** "September 2026" */
 export function formatMonth(date: Date): string {
   return date.toLocaleDateString(LOCALE, { month: "long", year: "numeric" });
+}
+
+/** Time zones to offer in the profile, with a sensible fallback for older browsers. */
+export function supportedTimeZones(): string[] {
+  const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf;
+  if (typeof supported === "function") {
+    try {
+      return supported("timeZone");
+    } catch {
+      // fall through to the short list
+    }
+  }
+  return [
+    "Europe/Stockholm", "Europe/Berlin", "Europe/London", "Europe/Madrid", "Europe/Helsinki",
+    "America/New_York", "America/Los_Angeles", "Asia/Tokyo", "Australia/Sydney", "UTC",
+  ];
 }
 
 /** "Mon" */

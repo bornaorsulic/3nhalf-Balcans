@@ -248,3 +248,23 @@ export const usePatientSummaries = (patientId: string | null) =>
   );
 
 export const useThreadMessages = (connectionId: string | null) => useMessages(connectionId);
+
+
+// ---------- The doctor's own directory profile ----------
+
+export const useClinicianProfile = () =>
+  useSWR<Doctor>("clinician-profile", () => apiJson<Doctor>("/clinician/profile"));
+
+export interface ClinicianProfileInput {
+  name?: string;
+  role?: string;
+  practice?: string;
+  specialty?: string;
+  city?: string;
+  languages?: string[];
+  bio?: string;
+  acceptingNewPatients?: boolean;
+}
+
+export const saveClinicianProfile = (profile: ClinicianProfileInput) =>
+  apiJson<Doctor>("/clinician/profile", { method: "PUT", body: JSON.stringify(profile) });

@@ -7,7 +7,6 @@ import {
   CalendarDays,
   Check,
   Inbox,
-  LogOut,
   Mail,
   ShieldCheck,
   UserPlus,
@@ -20,7 +19,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { invitePatient, respondToConnection, useConnections } from "@/lib/care-api";
 import { formatRelativeDay } from "@/lib/dates";
-import { logout, useSession } from "@/lib/session";
+import { useSession } from "@/lib/session";
+
+/** "Dr. Lena Eriksson" -> "LE", "Dr. Eriksson" -> "ER". */
+function initialsOf(displayName: string): string {
+  const name = displayName.replace(/^Dr\.?\s*/i, "").trim();
+  const parts = name.split(/\s+/).filter(Boolean);
+  const initials = parts.length > 1 ? parts.map((part) => part[0]).slice(0, 2).join("") : name.slice(0, 2);
+  return initials.toUpperCase();
+}
 
 /** The doctor's own patients, their pending requests, and inviting someone new. */
 export function ConnectedRoster() {
@@ -86,17 +93,14 @@ export function ConnectedRoster() {
               </Link>
             </Button>
             {user && (
-              <Button
-                variant="ghost"
-                className="gap-2"
-                onClick={async () => {
-                  await logout();
-                  window.location.href = "/login";
-                }}
+              <Link
+                href="/clinician/profile"
+                aria-label="Your profile and settings"
+                title={user.displayName}
+                className="flex size-10 items-center justify-center rounded-full bg-accent text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/70"
               >
-                <LogOut className="size-4" />
-                Sign out
-              </Button>
+                {initialsOf(user.displayName)}
+              </Link>
             )}
           </div>
         </header>

@@ -125,7 +125,7 @@ docs/                 API contract, database, accounts and Health Agent document
 
 | Piece | State |
 |---|---|
-| Accounts | Email + password, sessions, invite-only doctor accounts (`docs/ACCOUNTS.md`). |
+| Accounts | Email + password, sessions, invite-only doctor accounts, profile page with time zone, clock and password (`docs/ACCOUNTS.md`). |
 | Patient app | Runs on the browser mock **or** the PostgreSQL backend (`NEXT_PUBLIC_API_MODE`). |
 | Clinician dashboard | Account-based roster, calendar, messaging and summary editing on the backend; the offline demo keeps Borna's original screens. |
 | Care network | N:N connections with request, invite, accept, reject and disconnect. |
