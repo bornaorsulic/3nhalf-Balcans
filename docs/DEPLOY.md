@@ -45,11 +45,34 @@ Create a cluster in the console, then **create a database called `health_agent`*
 (managed clusters usually do not let you `CREATE DATABASE` over the wire — the setup
 script knows this and only creates tables when `DATABASE_URL` is set).
 
-Note the host, user and password; the connection string is
+Set **Access** to **Private only** — the VM reaches it over the VPC, and the tunnel is
+what makes the *app* public. A managed database on the open internet is the one mistake
+here that actually costs something.
+
+The cluster page's **"How to connect"** dialog has the host, the port and the CA
+download. The host looks like
+`private-rw.postgresql-<id>.backbone-<id>.msp.<region>.nebius.cloud`.
+
+⚠️ **Pick a password without URL syntax in it** — no `@ : / ? # [ ] & %`. It goes into a
+connection string, and an `@` produces a parse error that reads like an auth failure.
+
+The certificate comes from a private Nebius CA, so `sslmode=verify-full` needs it on
+disk. On the VM (step 2), once you are in:
+
+```bash
+mkdir -p /opt/longevity/certs
+curl -fsS https://storage.eu-north1.nebius.cloud/msp-certs/ca.pem -o /opt/longevity/certs/ca.pem
+```
+
+Compose mounts it into the backend at `/etc/ssl/nebius/ca.pem`, so the connection string
+is
 
 ```txt
-postgresql://<user>:<password>@<cluster-host>:5432/health_agent
+postgresql://<user>:<password>@<host>:5432/health_agent?sslmode=verify-full&sslrootcert=/etc/ssl/nebius/ca.pem
 ```
+
+Check it with `openssl s_client -starttls postgres -connect <host>:5432 -CAfile
+/opt/longevity/certs/ca.pem` — you want `Verify return code: 0 (ok)`.
 
 Put the cluster in the **same VPC network** as the VM from step 2.
 
@@ -180,5 +203,6 @@ way: this is a demo, not a system anyone should put a real record into.
 | Login does nothing, no error | `PUBLIC_URL` does not match the URL in the address bar, so the cookie is rejected. It must match scheme and host exactly. |
 | The API answers, the app shows loading forever | The frontend was built with a different `NEXT_PUBLIC_API_BASE_URL`. Rebuild — it is compiled in, not read at runtime. |
 | The backend container hangs at startup | `DATABASE_URL` is missing, so the script is waiting for a password on a terminal that is not there. |
+| `certificate verify failed` | The CA is not mounted, or `sslrootcert` does not point at `/etc/ssl/nebius/ca.pem` (the path *inside* the container). |
 | `relation "users" does not exist` | Step 4 was not run. |
 | The tunnel URL 502s | Caddy is not up, or the agent is pointed at the wrong port: it must be `localhost:8080`. |

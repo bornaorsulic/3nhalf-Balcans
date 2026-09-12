@@ -24,6 +24,10 @@ services:
       ALLOWED_ORIGINS: ${PUBLIC_URL:?set PUBLIC_URL in deploy/.env}
       # The public URL is HTTPS, so session cookies must be marked Secure.
       SECURE_COOKIES: "1"
+    volumes:
+      # Managed PostgreSQL presents a certificate from a private Nebius CA, so
+      # sslmode=verify-full needs the CA on disk. Not a secret; see docs/DEPLOY.md.
+      - ${CA_CERT_PATH:-/opt/longevity/certs/ca.pem}:/etc/ssl/nebius/ca.pem:ro
     expose:
       - "8000"
 
