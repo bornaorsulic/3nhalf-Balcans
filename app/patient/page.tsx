@@ -164,9 +164,13 @@ function TrendTiles() {
 
   return (
     <>
+      {/* The link is padded to a 24px target: 16px of text alone fails WCAG 2.2 AA. */}
       <SectionTitle
         action={
-          <Link href="/patient/health" className="text-xs font-semibold text-primary">
+          <Link
+            href="/patient/health"
+            className="-my-1 inline-flex min-h-6 items-center px-1 py-1 text-xs font-semibold text-primary"
+          >
             See all
           </Link>
         }

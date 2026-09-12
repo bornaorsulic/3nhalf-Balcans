@@ -6,11 +6,12 @@ import { Clock, Search, Stethoscope } from "lucide-react";
 import { PageHeader } from "@/components/patient/page-header";
 import { Button, Card, LoadingCards, SectionTitle, StatusPill } from "@/components/patient/ui";
 import { endConnection, requestConnection, useConnections, useDoctors, type Doctor } from "@/lib/care-api";
+import { formatRelativeDay } from "@/lib/dates";
 
 export default function DoctorsPage() {
   const [query, setQuery] = useState("");
   const { data: doctors, isLoading, mutate } = useDoctors(query);
-  const { mutate: refreshConnections } = useConnections();
+  const { data: connections, mutate: refreshConnections } = useConnections();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,15 +28,24 @@ export default function DoctorsPage() {
     }
   }
 
-  async function disconnect(doctor: Doctor) {
+  // Cancelling a pending request and ending an accepted one are the same call:
+  // the row is marked ended, and asking again later resets it to pending.
+  async function withdraw(doctor: Doctor, failure: string) {
     if (!doctor.connectionId) return;
     setBusyId(doctor.id);
+    setError(null);
     try {
       await endConnection(doctor.connectionId);
       await Promise.all([mutate(), refreshConnections()]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : failure);
     } finally {
       setBusyId(null);
     }
+  }
+
+  function requestedOn(doctor: Doctor) {
+    return connections?.find((connection) => connection.id === doctor.connectionId)?.createdAt ?? null;
   }
 
   return (
@@ -81,19 +91,29 @@ export default function DoctorsPage() {
 
                   <div className="mt-3">
                     {doctor.connectionStatus === "accepted" ? (
-                      <Button variant="ghost" disabled={busyId === doctor.id} onClick={() => disconnect(doctor)}>
+                      <Button variant="ghost" disabled={busyId === doctor.id} onClick={() => withdraw(doctor, "Could not disconnect")}>
                         Disconnect
                       </Button>
                     ) : doctor.connectionStatus === "pending" ? (
-                      <p className="flex items-center gap-1.5 text-sm text-ink-muted">
-                        <Clock aria-hidden className="size-4" /> Waiting for the doctor to answer
-                      </p>
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="flex items-center gap-1.5 text-sm text-ink-muted">
+                          <Clock aria-hidden className="size-4" />
+                          {requestedOn(doctor)
+                            ? `Asked ${formatRelativeDay(requestedOn(doctor)!)} · waiting for an answer`
+                            : "Waiting for the doctor to answer"}
+                        </p>
+                        <Button variant="ghost" disabled={busyId === doctor.id} onClick={() => withdraw(doctor, "Could not cancel the request")}>
+                          {busyId === doctor.id ? "Cancelling…" : "Cancel request"}
+                        </Button>
+                      </div>
                     ) : doctor.acceptingNewPatients ? (
                       <Button disabled={busyId === doctor.id} onClick={() => connect(doctor)}>
                         {busyId === doctor.id ? "Sending…" : "Ask to connect"}
                       </Button>
                     ) : (
-                      <p className="text-sm text-ink-muted">Not accepting new patients right now</p>
+                      <p className="text-sm text-ink-muted">
+                        {doctor.name} is not taking new patients at the moment. You can still ask another doctor.
+                      </p>
                     )}
                   </div>
                 </Card>

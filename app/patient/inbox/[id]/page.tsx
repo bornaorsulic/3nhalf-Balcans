@@ -49,13 +49,15 @@ export default function SummaryPage() {
   }
 
   const { body } = summary;
+  // Capture after the guard: TypeScript cannot keep the narrowing inside a closure.
+  const summaryId = summary.id;
   const day = new Date().toISOString().slice(0, 10);
 
   async function exportSummaryPdf() {
     setExportError(null);
     setExportingPdf(true);
     try {
-      await downloadFromApi(`/patients/me/summaries/${encodeURIComponent(summary.id)}/export.pdf`, `approved-summary-${day}.pdf`);
+      await downloadFromApi(`/patients/me/summaries/${encodeURIComponent(summaryId)}/export.pdf`, `approved-summary-${day}.pdf`);
     } catch (error) {
       setExportError(error instanceof Error ? error.message : "Could not export this summary");
     } finally {
