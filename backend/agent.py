@@ -28,6 +28,10 @@ URGENT_PATTERNS = [
     r"(vomiting|coughing) blood",
     r"(suicid|kill myself|end my life|self[- ]harm)",
     r"(severe|heavy) bleeding",
+    # Meningitis and sepsis. lib/safety.ts has always checked for this; the backend
+    # lost it somewhere and the salvaged tests caught the gap. The frontend checking
+    # is not a reason for the backend not to.
+    r"confus(ed|ion) and (fever|stiff neck)",
 ]
 
 MENTAL_HEALTH = r"(suicid|kill myself|end my life|self[- ]harm)"
