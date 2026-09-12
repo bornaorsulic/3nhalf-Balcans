@@ -19,6 +19,7 @@ import {
 import { AgentChat } from "@/components/clinician/agent-chat";
 import { PatientFiles } from "@/components/files/patient-files";
 import { SpeakButton, VoiceNotePlayer, VoiceRecorder } from "@/components/voice-controls";
+import { transcribeVoice } from "@/lib/voice";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,7 +29,6 @@ import {
   editSummary,
   markThreadRead,
   sendMessage,
-  sendVoiceMessage,
   useAudit,
   useConnections,
   useMessages,
@@ -507,14 +507,11 @@ function Thread({ connectionId, active }: { connectionId: string | null; active:
           <VoiceRecorder
             disabled={busy || !connectionId}
             onComplete={async (audio) => {
-              setBusy(true);
-              try {
-                await sendVoiceMessage(connectionId, audio);
-                await mutate();
-                await refreshConnections();
-              } finally {
-                setBusy(false);
-              }
+              // Transcribe into the message box rather than sending audio: speech
+              // recognition mishears, and a wrong symptom should be correctable before
+              // the other side reads it.
+              const text = await transcribeVoice(audio);
+              setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
             }}
           />
           <Button type="submit" disabled={busy || !draft.trim()} className="min-h-11 flex-1 gap-2">

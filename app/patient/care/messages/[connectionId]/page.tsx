@@ -7,7 +7,8 @@ import { SendHorizonal } from "lucide-react";
 import { PageHeader } from "@/components/patient/page-header";
 import { cx } from "@/components/patient/ui";
 import { SpeakButton, VoiceNotePlayer, VoiceRecorder } from "@/components/voice-controls";
-import { markThreadRead, sendMessage, sendVoiceMessage, useConnections, useMessages } from "@/lib/care-api";
+import { transcribeVoice } from "@/lib/voice";
+import { markThreadRead, sendMessage, useConnections, useMessages } from "@/lib/care-api";
 import { formatDay, formatTime } from "@/lib/dates";
 
 export default function ThreadPage() {
@@ -95,14 +96,11 @@ export default function ThreadPage() {
           <VoiceRecorder
             disabled={sending || !connectionId}
             onComplete={async (audio) => {
-              setSending(true);
-              try {
-                await sendVoiceMessage(connectionId, audio);
-                await mutate();
-                await refreshConnections();
-              } finally {
-                setSending(false);
-              }
+              // Transcribe into the message box rather than sending audio: speech
+              // recognition mishears, and a wrong symptom should be correctable before
+              // the other side reads it.
+              const text = await transcribeVoice(audio);
+              setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
             }}
           />
           <button

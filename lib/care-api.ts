@@ -202,13 +202,6 @@ export const endConnection = (connectionId: string) =>
 export const sendMessage = (connectionId: string, body: string) =>
   apiJson<Message>(`/connections/${connectionId}/messages`, { method: "POST", body: JSON.stringify({ body }) });
 
-export const sendVoiceMessage = (connectionId: string, audio: Blob) =>
-  apiJson<Message>(`/connections/${connectionId}/voice`, {
-    method: "POST",
-    headers: { "Content-Type": audio.type || "audio/webm" },
-    body: audio,
-  });
-
 export const markThreadRead = (connectionId: string) =>
   apiJson<void>(`/connections/${connectionId}/read`, { method: "POST" });
 

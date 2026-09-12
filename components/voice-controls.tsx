@@ -195,7 +195,7 @@ export function VoiceRecorder({
         type="button"
         onClick={recording ? stop : start}
         disabled={disabled || processing}
-        aria-label={recording ? "Stop recording" : "Record voice message"}
+        aria-label={recording ? "Stop dictating" : "Dictate a message"}
         className={cx(
           "flex size-11 shrink-0 items-center justify-center rounded-control border transition-colors disabled:opacity-40",
           recording ? "border-red-500 bg-red-500 text-white" : "border-line bg-surface text-ink hover:bg-surface-muted",

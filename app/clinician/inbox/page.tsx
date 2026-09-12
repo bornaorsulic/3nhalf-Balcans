@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SpeakButton, VoiceNotePlayer, VoiceRecorder } from "@/components/voice-controls";
-import { markThreadRead, sendMessage, sendVoiceMessage, useConnections, useMessages } from "@/lib/care-api";
+import { transcribeVoice } from "@/lib/voice";
+import { markThreadRead, sendMessage, useConnections, useMessages } from "@/lib/care-api";
 import { formatDay, formatRelativeDay, formatTime } from "@/lib/dates";
 import { useRequireRole } from "@/lib/session";
 
@@ -191,15 +192,11 @@ function Conversation({
         <VoiceRecorder
           disabled={busy || !connectionId}
           onComplete={async (audio) => {
-            if (!connectionId) return;
-            setBusy(true);
-            try {
-              await sendVoiceMessage(connectionId, audio);
-              await mutate();
-              refreshConnections();
-            } finally {
-              setBusy(false);
-            }
+            // Transcribe into the message box rather than sending audio: speech
+            // recognition mishears, and a wrong symptom should be correctable before
+            // the other side reads it.
+            const text = await transcribeVoice(audio);
+            setDraft((current) => (current.trim() ? `${current.trim()} ${text}` : text));
           }}
         />
         <Button type="submit" disabled={!draft.trim() || busy} className="gap-2">
