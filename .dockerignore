@@ -1,0 +1,10 @@
+node_modules
+dist
+.vinext
+.wrangler
+.venv
+.git
+.env*
+!.env.example
+deploy/.env
+*.pem

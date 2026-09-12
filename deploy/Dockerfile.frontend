@@ -1,0 +1,35 @@
+# The patient and clinician UI as a plain Node server.
+#
+# The project builds for Cloudflare Workers by default; `output: "standalone"` in
+# next.config.ts additionally emits dist/standalone/, which is what runs here.
+
+FROM node:22-alpine AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+# Inlined into the client bundle at BUILD time, not read at runtime. Relative on
+# purpose: the browser calls the same origin it loaded the page from, so the public
+# hostname can change without rebuilding, and session cookies stay first-party.
+ENV NEXT_PUBLIC_API_BASE_URL=/api/v1
+RUN npm run build
+
+FROM node:22-alpine
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000 HOST=0.0.0.0
+
+# The standalone bundle carries vinext's own runtime deps but NOT react: it expects
+# to sit inside a project and resolve that from the node_modules above it. So install
+# the production dependencies here, and put the bundle one level down — Node then
+# walks standalone/node_modules (vinext) and falls through to /app/node_modules (react).
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts
+
+COPY --from=build /app/dist/standalone ./standalone
+
+EXPOSE 3000
+# vinext reads HOST, not HOSTNAME (which Linux sets for every process).
+CMD ["node", "standalone/server.js"]

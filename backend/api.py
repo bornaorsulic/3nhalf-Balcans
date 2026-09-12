@@ -25,8 +25,7 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from backend import audit, care, retrieval, schedule, summaries as summary_edits  # noqa: E402
-from backend.agent import answer  # noqa: E402
-from backend.clinician_agent import answer as clinician_answer  # noqa: E402
+from backend.health_agent import HealthAgent  # noqa: E402
 from backend.auth import (  # noqa: E402
     SESSION_COOKIE,
     RegistrationError,
@@ -50,6 +49,7 @@ ALLOWED_ORIGINS = os.environ.get(
 SECURE_COOKIES = os.environ.get("SECURE_COOKIES", "").lower() in ("1", "true", "yes")
 
 app = FastAPI(title="Longevity Health Agent API", version="2.0.0")
+health_agent = HealthAgent()
 
 # The browser calls this API directly and must send the session cookie.
 app.add_middleware(
@@ -383,13 +383,12 @@ def add_diary(patient_id: str, entry: DiaryEntryBody, user: dict = Depends(curre
 @app.post(PREFIX + "/patients/{patient_id}/chat")
 def chat(patient_id: str, request: ChatRequest, user: dict = Depends(current_patient)) -> dict:
     pid = resolve_patient(patient_id, user)
-    context = retrieval.get_patient_context(pid)
-    if not context["patient"]:
-        raise HTTPException(status_code=404, detail=f"No patient '{pid}'")
-    context["research"] = retrieval.get_research()
-
     question = next((m.content for m in reversed(request.messages) if m.role == "user"), "")
-    return answer(question, context)
+    history = [message.model_dump() for message in request.messages]
+    try:
+        return health_agent.patient_answer(pid, question, history)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=f"No patient '{pid}'") from error
 
 
 @app.post(PREFIX + "/clinician/chat")
@@ -401,12 +400,10 @@ def clinician_chat(body: ClinicianChatRequest, user: dict = Depends(current_clin
     is the same one every other clinician route uses.
     """
     pid = resolve_patient(body.patientId, user)
-    context = retrieval.get_patient_context(pid)
-    if not context["patient"]:
-        raise HTTPException(status_code=404, detail=f"No patient '{pid}'")
-    context["research"] = retrieval.get_research()
-
-    reply = clinician_answer(body.question, context)
+    try:
+        reply = health_agent.answer(pid, body.question)
+    except LookupError as error:
+        raise HTTPException(status_code=404, detail=f"No patient '{pid}'") from error
     # The patient can see that their record was queried, and what was asked.
     audit.log("asked_agent", actor=user, patient_id=pid, detail=body.question[:200])
     return reply

@@ -1,7 +1,15 @@
 "use client";
 
 import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { BookOpen, Check, ClipboardCopy, FileSignature, Send, Sparkles } from "lucide-react";
+import {
+  Check,
+  ClipboardCopy,
+  FileSignature,
+  ListChecks,
+  Microscope,
+  Send,
+  Sparkles,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,7 +18,7 @@ import { RichText } from "@/components/patient/rich-text";
 import { askAgent, createSummary, sendMessage } from "@/lib/care-api";
 import { formatTime } from "@/lib/dates";
 import { useIsClient } from "@/hooks/use-is-client";
-import type { ClinicianAgentReply, PatientPriority } from "@/lib/types";
+import type { ClinicianAgentReply, EvidenceCitation, PatientPriority, SourceLabel } from "@/lib/types";
 
 /*
  * The doctor's Health Agent chat: questions about the patient whose record is
@@ -224,6 +232,8 @@ function Answer({
   onOpenSummaries: () => void;
   onFollowUp: (question: string) => void;
 }) {
+  const doctorActions = buildDoctorActions(reply);
+
   return (
     <section className="rounded-lg border bg-card p-5 shadow-sm">
       <RichText text={reply.answer} />
@@ -257,28 +267,11 @@ function Answer({
       )}
 
       {reply.citations.length > 0 && (
-        <div className="mt-5">
-          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            <BookOpen className="size-3.5" /> Sources
-          </h3>
-          <ul className="space-y-1.5 text-sm">
-            {reply.citations.map((citation) => (
-              <li key={citation.id} className="flex flex-wrap items-baseline gap-x-2">
-                <Badge variant="secondary" className="font-normal">
-                  {citation.source}
-                </Badge>
-                {citation.url ? (
-                  <a href={citation.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
-                    {citation.title}
-                  </a>
-                ) : (
-                  <span>{citation.title}</span>
-                )}
-                <span className="text-muted-foreground">— {citation.relevance}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        <EvidenceReview reply={reply} />
+      )}
+
+      {doctorActions.length > 0 && (
+        <DoctorActionChecklist actions={doctorActions} onFollowUp={onFollowUp} />
       )}
 
       {reply.followUpQuestions.length > 0 && (
@@ -300,6 +293,115 @@ function Answer({
 
       <Actions reply={reply} patientId={patientId} connectionId={connectionId} onOpenSummaries={onOpenSummaries} />
     </section>
+  );
+}
+
+function EvidenceReview({ reply }: { reply: ClinicianAgentReply }) {
+  return (
+    <div className="mt-5">
+      <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Microscope className="size-3.5" /> Evidence review
+      </h3>
+      <div className="grid gap-3 md:grid-cols-2">
+        {reply.citations.map((citation) => {
+          const related = relatedPatientData(reply, citation);
+          const strength = evidenceStrength(reply, citation);
+          return (
+            <article key={citation.id} className="rounded-md border p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <Badge variant="secondary" className="font-normal">
+                  {citation.source}
+                </Badge>
+                <Badge variant="outline" className={strength.className}>
+                  {strength.label}
+                </Badge>
+              </div>
+              <h4 className="mt-3 text-sm font-semibold leading-snug">
+                {citation.url ? (
+                  <a href={citation.url} target="_blank" rel="noreferrer" className="underline underline-offset-2">
+                    {citation.title}
+                  </a>
+                ) : (
+                  citation.title
+                )}
+              </h4>
+              <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Why it matters</p>
+              <p className="mt-1 text-sm text-muted-foreground">{citation.relevance}</p>
+              {related.length > 0 && (
+                <>
+                  <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    Patient data connected
+                  </p>
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {related.map((source) => (
+                      <Badge key={source} variant="outline" className="font-normal">
+                        {source}
+                      </Badge>
+                    ))}
+                  </div>
+                </>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+type DoctorAction = {
+  id: string;
+  label: string;
+  detail: string;
+  question?: string;
+};
+
+function DoctorActionChecklist({
+  actions,
+  onFollowUp,
+}: {
+  actions: DoctorAction[];
+  onFollowUp: (question: string) => void;
+}) {
+  const [checked, setChecked] = useState<Record<string, boolean>>({});
+
+  return (
+    <div className="mt-5 rounded-md border bg-muted/20 p-4">
+      <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <ListChecks className="size-3.5" /> Doctor action checklist
+      </h3>
+      <div className="space-y-3">
+        {actions.map((action) => (
+          <div key={action.id} className="flex items-start gap-3">
+            <input
+              id={`doctor-action-${action.id}`}
+              type="checkbox"
+              checked={Boolean(checked[action.id])}
+              onChange={(event) => setChecked((current) => ({ ...current, [action.id]: event.target.checked }))}
+              className="mt-1 size-4 shrink-0 accent-primary"
+            />
+            <span className="min-w-0 flex-1">
+              <label
+                htmlFor={`doctor-action-${action.id}`}
+                className={
+                  checked[action.id]
+                    ? "block text-sm font-medium text-muted-foreground line-through"
+                    : "block text-sm font-medium"
+                }
+              >
+                {action.label}
+              </label>
+              <span className="block text-sm text-muted-foreground">{action.detail}</span>
+            </span>
+            {action.question && (
+              <Button type="button" variant="ghost" size="sm" onClick={() => onFollowUp(action.question!)}>
+                Ask
+              </Button>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -406,6 +508,72 @@ function Actions({
 
       {error && <p className="text-sm text-destructive">{error}</p>}
     </div>
+  );
+}
+
+function buildDoctorActions(reply: ClinicianAgentReply): DoctorAction[] {
+  const actions: DoctorAction[] = reply.riskSignals.slice(0, 4).map((signal) => ({
+    id: `signal-${signal.id}`,
+    label: signal.preventionStep,
+    detail: `Linked to ${signal.title.toLowerCase()} (${SEVERITY[signal.severity].label.toLowerCase()} priority).`,
+    question: `What should I check next for: ${signal.title}?`,
+  }));
+
+  if (reply.citations.length > 0) {
+    actions.push({
+      id: "review-evidence",
+      label: "Review the linked Amass evidence before acting on the recommendation.",
+      detail: "Use the source strength and patient-data match to decide whether this is strong enough for the visit plan.",
+    });
+  }
+
+  if (reply.followUpQuestions.length > 0) {
+    actions.push({
+      id: "ask-patient",
+      label: "Ask the highest-value patient question.",
+      detail: reply.followUpQuestions[0],
+      question: reply.followUpQuestions[0],
+    });
+  }
+
+  return actions.slice(0, 6);
+}
+
+function relatedPatientData(reply: ClinicianAgentReply, citation: EvidenceCitation): SourceLabel[] {
+  const citationWords = words(citation.title + " " + citation.relevance);
+  const related = new Set<SourceLabel>();
+
+  for (const signal of reply.riskSignals) {
+    const signalWords = words(signal.title + " " + signal.explanation + " " + signal.preventionStep);
+    const overlaps = [...citationWords].some((word) => signalWords.has(word));
+    if (overlaps || signal.sources.includes(citation.source)) {
+      for (const source of signal.sources) {
+        if (source !== "Amass Research") related.add(source);
+      }
+    }
+  }
+
+  return [...related].slice(0, 4);
+}
+
+function evidenceStrength(reply: ClinicianAgentReply, citation: EvidenceCitation): { label: string; className: string } {
+  const related = relatedPatientData(reply, citation);
+  const relevance = citation.relevance.toLowerCase();
+  if (relevance.includes("not cited") || relevance.includes("weak") || related.length === 0) {
+    return { label: "Weak", className: "bg-muted text-muted-foreground" };
+  }
+  if (related.length >= 2) {
+    return { label: "Direct", className: "border-primary/30 bg-primary/10 text-primary" };
+  }
+  return { label: "Indirect", className: "border-amber-500/30 bg-amber-500/10 text-amber-700 dark:text-amber-400" };
+}
+
+function words(value: string): Set<string> {
+  return new Set(
+    value
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length > 4),
   );
 }
 

@@ -163,11 +163,16 @@ NEBIUS_BASE_URL=
 NEBIUS_MODEL=
 AMASS_API_KEY=
 AMASS_BASE_URL=
+NEBIUS_TIMEOUT_SECONDS=120
+NEBIUS_MAX_TOKENS=2200
+AMASS_TIMEOUT_SECONDS=15
 ```
 
 - **Server-side only.** Never prefix them `NEXT_PUBLIC_`, and never import them into a
   React component.
 - Add the names (no values) to [`.env.example`](../.env.example). `.env*` is gitignored.
+- For local development, the Python Health Agent loads provider settings from
+  `.env.local`; shell exports take precedence.
 - Confirm the exact base URL and model id in the Nebius console rather than assuming.
 - The keys live only where the Python backend runs; the frontend never sees them.
 

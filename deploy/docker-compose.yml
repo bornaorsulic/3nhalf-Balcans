@@ -1,0 +1,44 @@
+# The whole product on one VM. PostgreSQL is not here: it is Nebius Managed
+# PostgreSQL, reached over the private network (see docs/DEPLOY.md).
+#
+#   cd deploy && docker compose up -d --build
+
+services:
+  frontend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.frontend
+    restart: unless-stopped
+    expose:
+      - "3000"
+
+  backend:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.backend
+    restart: unless-stopped
+    environment:
+      # Managed PostgreSQL connection string.
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+      # Exact public origin, no wildcard: CORS runs with credentials.
+      ALLOWED_ORIGINS: ${PUBLIC_URL:?set PUBLIC_URL in deploy/.env}
+      # The public URL is HTTPS, so session cookies must be marked Secure.
+      SECURE_COOKIES: "1"
+    volumes:
+      # Managed PostgreSQL presents a certificate from a private Nebius CA, so
+      # sslmode=verify-full needs the CA on disk. Not a secret; see docs/DEPLOY.md.
+      - ${CA_CERT_PATH:-/opt/longevity/certs/ca.pem}:/etc/ssl/nebius/ca.pem:ro
+    expose:
+      - "8000"
+
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      # The tunnel agent on the host connects to this.
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - frontend
+      - backend
