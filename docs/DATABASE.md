@@ -1,8 +1,10 @@
 # Database and backend
 
-The demo patient lives in PostgreSQL, and the patient app can run against it
-through a small FastAPI backend. This page explains the setup, the schema, and
-how data flows.
+The demo patient lives in PostgreSQL, and both views read it through the FastAPI
+backend. This page explains the schema and how data flows.
+
+**Setting the project up is documented once, in the [README](../README.md).** This page
+assumes it is already running.
 
 ## Where the demo data comes from
 
@@ -25,37 +27,19 @@ PostgreSQL "health_agent"         labs, wearables, check-ins, genetics, summarie
 Nothing is duplicated by hand: re-run the two commands and the database matches
 the frontend again, with fresh dates.
 
-## Setup
+## Connection settings
 
-You need PostgreSQL running locally (or any Postgres you can reach).
-
-```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r backend/requirements.txt
-```
-
-Connection settings are read by [`backend/database.py`](../backend/database.py), in this order:
+[`backend/database.py`](../backend/database.py) resolves them in this order:
 
 1. `DATABASE_URL`, e.g. `postgresql://postgres:secret@localhost:5432/health_agent`
 2. `PGHOST` / `PGPORT` / `PGUSER` / `PGDATABASE` / `PGPASSWORD`
 3. the defaults (`postgres@localhost:5432/health_agent`), asking for the password on the terminal
 
-Then:
-
-```bash
-python3 scripts/setup_database.py          # create the database and tables
-npm run export:demo                        # write data/patient_demo.json from the frontend
-python3 scripts/ingest_patient.py          # load the demo patient
-uvicorn backend.api:app --reload --port 8000
-```
-
-The frontend needs no configuration when the API runs on `localhost:8000`; otherwise set
-`NEXT_PUBLIC_API_BASE_URL` in `.env.local`. Backend settings are environment variables in
-the shell that runs Python, not `.env.local` — see [.env.example](../.env.example).
+These are environment variables in the shell that runs Python — not `.env.local`, which
+only configures the frontend. See [.env.example](../.env.example).
 
 The patient always comes from the signed-in session, so no patient id is configured
-anywhere in the frontend. Seed the demo logins with `python3 scripts/seed_accounts.py`
-(see [ACCOUNTS.md](ACCOUNTS.md)).
+anywhere in the frontend.
 
 ## Scripts
 
@@ -65,7 +49,6 @@ anywhere in the frontend. Seed the demo logins with `python3 scripts/seed_accoun
 | `npm run export:demo` | Writes `data/patient_demo.json` from `lib/demo`. |
 | `python3 scripts/ingest_patient.py [file]` | Loads a patient file (default `data/patient_demo.json`). Re-running replaces that patient's rows. |
 | `python3 scripts/check_database.py` | Lists tables with row counts. |
-| `python3 scripts/inspect_patient.py [id]` | Prints one patient (default `demo`) as the API returns it. |
 | `python3 scripts/search_research.py [query]` | Searches the stored research evidence. |
 | `python3 scripts/seed_accounts.py` | Creates the demo logins, doctor directory, connections and open slots. |
 | `uvicorn backend.api:app --reload --port 8000` | Runs the API. Swagger UI at `/docs`. |

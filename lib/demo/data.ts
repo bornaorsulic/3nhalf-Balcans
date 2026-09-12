@@ -16,9 +16,9 @@ import type {
 
 /*
  * Single source of truth for the demo patient (Sofia Lind, id "demo").
- * The patient app reads it through the mock PatientApi, and the clinician
- * dashboard derives its record from it (lib/demo/clinician-record.ts), so both
- * views always show the same numbers.
+ * Seed data only: `npm run export:demo` writes it to data/patient_demo.json and
+ * scripts/ingest_patient.py loads it into PostgreSQL. Both views then read the
+ * same rows through backend/api.py, so they always show the same numbers.
  *
  * Story (see the repo README): fatigue, poor sleep, elevated fasting glucose and
  * hs-CRP, low vitamin D, and declining sleep/HRV. All dates are relative to

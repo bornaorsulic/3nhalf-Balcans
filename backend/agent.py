@@ -1,9 +1,8 @@
 """Scripted Health Agent (patient mode) over the database.
 
-This is the Python twin of `lib/patient-api/mock/agent.ts`: it answers from the
-patient's own rows, cites sources, and follows the same safety rules. Person 1
-replaces `answer()` with the Nebius call; the reply shape must stay the same
-(see docs/PATIENT_API.md).
+It answers from the patient's own rows, cites sources, and follows the safety
+rules. Person 1 replaces `answer()` with the Nebius call; the reply shape must
+stay the same (see docs/PATIENT_API.md and docs/HEALTH_AGENT.md).
 
 Rules the real agent must keep: no diagnosis, no prescribing or dosing, plain
 language, red-flag symptoms escalate, decisions defer to the clinician.

@@ -1,19 +1,22 @@
 # Team Contract
 
+Setup and how to start everything: [README.md](README.md). This page is only the
+agreement between the four workstreams.
+
 ## Stack
 
 - Framework: Next.js · UI: React · Language: TypeScript
 - Styling: Tailwind CSS, design tokens in `app/theme.css` (shared by both views)
 - Backend: Python (FastAPI) + PostgreSQL, in `backend/` and `scripts/`
-- Shared types: `lib/types.ts` (clinician) and `lib/patient-api/types.ts` (patient app)
+- Shared types: `lib/patient-api/types.ts` (everything the app renders) and `lib/types.ts` (the agent answer contract)
 - Demo data: one demo patient in `lib/demo/`, exported to the database with `npm run export:demo`
 - Clinician route: `/clinician` · Patient route: `/patient` · Accounts: `/login`, `/register`
 - Accounts, connections, calendar and messaging: `docs/ACCOUNTS.md`
 
 ## Integration Rule
 
-Build against the TypeScript types in `lib/types.ts` and `lib/patient-api/types.ts`.
-Both views read the database through `backend/api.py`. Nebius, Amass and the RAG layer
+Build against the TypeScript types in `lib/patient-api/types.ts` (and `lib/types.ts`
+for the agent answer). Both views read the database through `backend/api.py`. Nebius, Amass and the RAG layer
 can replace the stand-ins behind those endpoints as long as the JSON shape stays.
 
 Both views must show the same patient data. Add or change demo data in
@@ -26,9 +29,13 @@ npm run export:demo && python3 scripts/ingest_patient.py
 ## Data flow
 
 ```txt
-lib/demo/data.ts → data/patient_demo.json → PostgreSQL → backend/api.py → /patient
-                 ↘ lib/demo/clinician-record.ts → /clinician
+                                                                       ↗ /patient
+lib/demo/data.ts → data/patient_demo.json → PostgreSQL → backend/api.py
+                                                                       ↘ /clinician
 ```
+
+`lib/demo/` is seed data only: it is exported into the database and never read at
+runtime. Both views show the same rows because they call the same API.
 
 ## Minimum API Endpoints
 
@@ -66,10 +73,9 @@ Research evidence lives in `research_sources`; keep the shape (`id`, `title`,
 
 ## Person 3 — Clinician dashboard
 
-The dashboard should only call API routes or use shared typed data — never Nebius,
-Amass, or the database directly. It currently reads the TypeScript demo data; when
-you move it to the backend, the approval endpoint above is the shared step with the
-patient app.
+The dashboard only calls API routes — never Nebius, Amass, or the database directly.
+It already runs on the backend; the approval endpoint above is the shared step with
+the patient app.
 
 ## Accounts and the care network
 
