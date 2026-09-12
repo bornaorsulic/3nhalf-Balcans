@@ -128,40 +128,75 @@ refresh the demo dates, run `npm run export:demo` on your machine and commit the
 
 ## 5. The public URL
 
+The CLI, if you do not have it:
+
+```bash
+curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
+exec -l $SHELL
+nebius profile create      # not `nebius init` — browser login, then pick tenant and project
+```
+
 Create the tunnel and a service account for the agent:
 
 ```bash
-export TUNNEL_ID=$(nebius tunnel create --title longevity --format jsonpath='{.metadata.id}')
-
-nebius iam service-account create --name longevity-tunnel
-openssl genrsa -out /opt/longevity/private_key.pem 4096
-openssl rsa -in /opt/longevity/private_key.pem -pubout -out /opt/longevity/public_key.pem
-nebius iam auth-public-key create --service-account-id <sa-id> --data "$(cat /opt/longevity/public_key.pem)"
+nebius tunnel create --title longevity
+nebius iam service-account create --parent-id <project-id> --name longevity-tunnel
 ```
 
-Give that service account the `applicationtunnel.agent` role **on the tunnel**, then
-install the agent on the VM:
+Both print a `waiting for operation …` line **before** the YAML, so piping `--format json`
+straight into a JSON parser fails. Read the ids off the output.
+
+Generate the agent's key **on the VM**, so the private half never travels:
+
+```bash
+ssh ubuntu@<vm-ip> 'cd /opt/longevity && openssl genrsa -out private_key.pem 4096 && chmod 600 private_key.pem && openssl rsa -in private_key.pem -pubout'
+```
+
+Register the public half:
+
+```bash
+nebius iam auth-public-key create \
+  --parent-id <project-id> \
+  --account-service-account-id <sa-id> \
+  --name longevity-tunnel-key \
+  --data "<the PEM you just printed>"
+```
+
+**The role binding does not attach to the service account directly** — an access permit's
+parent must be a *group*, which is the one step that is not guessable:
+
+```bash
+nebius iam group create --parent-id <tenant-id> --name longevity-tunnel-agents
+nebius iam group-membership create --parent-id <group-id> --member-id <sa-id>
+nebius iam access-permit create \
+  --parent-id <group-id> \
+  --resource-id <tunnel-id> \
+  --role applicationtunnel.agent
+```
+
+Install the agent on the VM:
 
 ```bash
 cd /opt/longevity
-curl -LO https://storage.eu-north1.nebius.cloud/products/releases/nebius-tunnel-agent/latest/nebius-tunnel-agent-linux-x86_64.tar.gz
+curl -fsSLO https://storage.eu-north1.nebius.cloud/products/releases/nebius-tunnel-agent/latest/nebius-tunnel-agent-linux-x86_64.tar.gz
 tar -xzf nebius-tunnel-agent-linux-x86_64.tar.gz
-cp app/deploy/tunnel-agent.example.yaml tunnel-agent.yaml   # fill in the three ids
+cp app/deploy/tunnel-agent.example.yaml tunnel-agent.yaml    # fill in the three ids
 sudo cp app/deploy/nebius-tunnel-agent.service /etc/systemd/system/
-sudo systemctl enable --now nebius-tunnel-agent
+sudo systemctl daemon-reload && sudo systemctl enable --now nebius-tunnel-agent
+sudo journalctl -u nebius-tunnel-agent -n 20 --no-pager
 ```
 
-The agent prints the public URL, in the form
+The log line `service endpoint … name=web endpoint=…` carries the public URL:
 
 ```txt
-https://web-<masked-tunnel-id>.tunnel.applications.eu-north1.nebius.cloud
+https://web-<masked-tunnel-id>.tunnel.applications.<region>.nebius.cloud
 ```
 
 Put it in `deploy/.env` as `PUBLIC_URL` — exact scheme, no trailing slash — and restart
 the backend so CORS and the Secure cookie flag match:
 
 ```bash
-cd /opt/longevity/app/deploy && docker compose up -d backend
+cd /opt/longevity/app/deploy && docker compose up -d --force-recreate backend
 ```
 
 Open the URL and sign in.
@@ -206,3 +241,5 @@ way: this is a demo, not a system anyone should put a real record into.
 | `certificate verify failed` | The CA is not mounted, or `sslrootcert` does not point at `/etc/ssl/nebius/ca.pem` (the path *inside* the container). |
 | `relation "users" does not exist` | Step 4 was not run. |
 | The tunnel URL 502s | Caddy is not up, or the agent is pointed at the wrong port: it must be `localhost:8080`. |
+| A bind mount shows up as an empty directory in the container | The host path in `.env` has a typo. Docker creates a directory rather than failing, and the error surfaces later as "no certificate found" or "is a directory". |
+| `SASL authentication failed` | The database password is wrong. The rest of the connection string is fine, or you would see a different error. |
