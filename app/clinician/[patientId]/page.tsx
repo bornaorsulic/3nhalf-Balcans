@@ -1,15 +1,17 @@
+"use client";
+
+import { useParams } from "next/navigation";
+
 import { ClinicianPatientDetail } from "@/components/clinician-patient-detail";
+import { PatientRecord } from "@/components/clinician/patient-record";
+import { isMockMode, useRequireRole } from "@/lib/session";
 
-type ClinicianPatientPageProps = {
-  params: Promise<{
-    patientId: string;
-  }>;
-};
+export default function ClinicianPatientPage() {
+  const { patientId } = useParams<{ patientId: string }>();
+  const { user, loading } = useRequireRole("clinician");
 
-export default async function ClinicianPatientPage({
-  params,
-}: ClinicianPatientPageProps) {
-  const { patientId } = await params;
-
-  return <ClinicianPatientDetail patientId={patientId} />;
+  // Without a backend the app shows the offline demo record.
+  if (isMockMode) return <ClinicianPatientDetail patientId={patientId} />;
+  if (loading || !user) return <main className="min-h-screen bg-background" aria-busy="true" />;
+  return <PatientRecord patientId={patientId} />;
 }

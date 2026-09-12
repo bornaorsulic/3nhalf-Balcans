@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope } from "lucide-react";
+import { CalendarDays, CheckCircle2, ClipboardCheck, MessageCircle, NotebookPen, Stethoscope, Watch } from "lucide-react";
 import { Sparkline } from "@/components/patient/charts/sparkline";
 import { Card, Delta, LinkCard, LoadingCards, SectionTitle, StatusPill } from "@/components/patient/ui";
 import { API_MODE } from "@/lib/app-config";
@@ -176,7 +176,15 @@ function TrendTiles() {
       >
         Last 7 days vs. a month ago
       </SectionTitle>
-      {data ? (
+      {data && data.days.length === 0 ? (
+        <Card className="text-center">
+          <Watch aria-hidden className="mx-auto size-8 text-ink-muted" />
+          <p className="mt-2 font-semibold">No wearable data yet</p>
+          <p className="mt-1 text-sm text-ink-muted">
+            Once your sleep and heart data arrive, your trends show up here.
+          </p>
+        </Card>
+      ) : data ? (
         <div className="grid grid-cols-2 gap-3">
           {tiles.map((metric) => {
             const m = METRICS[metric];

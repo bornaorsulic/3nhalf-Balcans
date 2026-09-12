@@ -32,6 +32,8 @@ export class HttpPatientApi implements PatientApi {
     const url = `${this.baseUrl.replace(/\/$/, "")}/patients/${encodeURIComponent(this.patientId)}${path}`;
     const res = await fetch(url, {
       ...init,
+      // The session lives in an HttpOnly cookie set by the backend.
+      credentials: "include",
       headers: { "Content-Type": "application/json", ...init?.headers },
     });
     if (!res.ok) {

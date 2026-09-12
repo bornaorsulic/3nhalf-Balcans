@@ -4,13 +4,19 @@ import Link from "next/link";
 import {
   Activity,
   MessageSquareText,
+  LogIn,
   MonitorCog,
-  RotateCcw,
   Smartphone,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { resetDemoState } from "@/lib/demo/store";
+
+const DEMO_LOGINS = [
+  { name: "Sofia Lind", email: "sofia@demo.health", note: "Patient with a year of results and 30 days of wearable data" },
+  { name: "Mikael Anders", email: "mikael@demo.health", note: "Patient with an empty account, to show onboarding" },
+  { name: "Dr. Eriksson", email: "eriksson@demo.health", note: "Doctor connected to both patients" },
+  { name: "Dr. Moreau", email: "moreau@demo.health", note: "Doctor with a pending request from Sofia" },
+];
 
 export default function Home() {
   return (
@@ -63,19 +69,34 @@ export default function Home() {
         </div>
 
         <div className="mt-5 rounded-lg border bg-card p-5 text-card-foreground shadow-sm">
-          <h2 className="text-sm font-semibold">Demo flow: one patient, two views</h2>
-          <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm leading-6 text-muted-foreground">
-            <li>Open the patient view as Sofia Lind: log today&apos;s check-in and ask the Health Agent why she is tired.</li>
-            <li>Open the clinician view: the check-in appears in Sofia&apos;s timeline, with the same numbers.</li>
-            <li>Approve the patient-facing summary: it arrives in the patient app&apos;s Inbox, even in another tab.</li>
-          </ol>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Button variant="outline" size="sm" onClick={() => resetDemoState()} className="gap-2">
-              <RotateCcw className="size-4" />
-              Reset demo data
-            </Button>
-            <span className="text-xs text-muted-foreground">Clears check-ins, questions and approvals made during a demo.</span>
+          <h2 className="text-sm font-semibold">Demo logins</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Password for all of them: <code className="font-mono">demo1234</code>. Sign in as a patient in one window and a
+            doctor in another to see both sides at once.
+          </p>
+          <div className="mt-3 grid gap-2 md:grid-cols-2">
+            {DEMO_LOGINS.map((account) => (
+              <div key={account.email} className="rounded-md border p-3 text-sm">
+                <p className="font-medium">{account.name}</p>
+                <p className="text-xs text-muted-foreground">{account.email}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{account.note}</p>
+              </div>
+            ))}
           </div>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Button asChild className="gap-2">
+              <Link href="/login">
+                <LogIn className="size-4" />
+                Sign in
+              </Link>
+            </Button>
+            <Link href="/register" className="text-sm font-medium text-primary hover:underline">
+              Create an account
+            </Link>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Doctor accounts need an invite code: <code className="font-mono">LONGEVITY-2026</code>
+          </p>
         </div>
 
         <div className="mt-6 flex items-center gap-2 text-sm text-muted-foreground">

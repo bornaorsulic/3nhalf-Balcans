@@ -7,7 +7,8 @@
 - Backend: Python (FastAPI) + PostgreSQL, in `backend/` and `scripts/`
 - Shared types: `lib/types.ts` (clinician) and `lib/patient-api/types.ts` (patient app)
 - Demo data: one demo patient in `lib/demo/`, exported to the database with `npm run export:demo`
-- Clinician route: `/clinician` · Patient route: `/patient`
+- Clinician route: `/clinician` · Patient route: `/patient` · Accounts: `/login`, `/register`
+- Accounts, connections, calendar and messaging: `docs/ACCOUNTS.md`
 
 ## Integration Rule
 
@@ -72,6 +73,12 @@ The dashboard should only call API routes or use shared typed data — never Neb
 Amass, or the database directly. It currently reads the TypeScript demo data; when
 you move it to the backend, the approval endpoint above is the shared step with the
 patient app.
+
+## Accounts and the care network
+
+Patients self-register; doctor accounts need an invite code. A doctor reaches a
+patient's record only through an **accepted** connection in `care_connections`, and the
+API checks that on every patient route. Keep it that way when adding endpoints.
 
 ## Person 4 — Patient app
 

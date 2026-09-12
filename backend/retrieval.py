@@ -55,10 +55,13 @@ def get_profile(patient_id: str) -> dict | None:
     if patient.get("clinician_id"):
         clinician = _one("SELECT * FROM clinicians WHERE id = %s;", (patient["clinician_id"],))
 
+    # The next appointment: upcoming and not cancelled.
     appointment = _one(
         """
         SELECT * FROM appointments
         WHERE patient_id = %s
+          AND COALESCE(status, 'booked') <> 'cancelled'
+          AND starts_at >= NOW()
         ORDER BY starts_at
         LIMIT 1;
         """,
@@ -183,7 +186,7 @@ def add_diary_entry(patient_id: str, entry: dict) -> dict:
 # ---------- Summaries (clinician in the loop) ----------
 
 
-def get_summaries(patient_id: str) -> list[dict]:
+def get_summaries(patient_id: str, include_draft_body: bool = False) -> list[dict]:
     rows = _query(
         "SELECT * FROM summaries WHERE patient_id = %s ORDER BY created_at DESC;",
         (patient_id,),
@@ -197,7 +200,7 @@ def get_summaries(patient_id: str) -> list[dict]:
         approved_by = None
         if row.get("approved_by"):
             approved_by = _one("SELECT * FROM clinicians WHERE id = %s;", (row["approved_by"],))
-        summaries.append(models.summary(row, sources, approved_by))
+        summaries.append(models.summary(row, sources, approved_by, include_draft_body))
     return summaries
 
 

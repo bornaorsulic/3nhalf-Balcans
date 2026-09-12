@@ -54,8 +54,11 @@ Point the frontend at it (in `.env.local`):
 ```bash
 NEXT_PUBLIC_API_MODE=http
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
-NEXT_PUBLIC_PATIENT_ID=demo
 ```
+
+With accounts switched on, the patient comes from the signed-in session, so no patient
+id is configured in the frontend. Seed the demo logins with
+`python3 scripts/seed_accounts.py` (see [ACCOUNTS.md](ACCOUNTS.md)).
 
 Leaving `NEXT_PUBLIC_API_MODE=mock` (the default) keeps the app running entirely
 in the browser, so a demo never depends on the database being up.
@@ -70,6 +73,7 @@ in the browser, so a demo never depends on the database being up.
 | `python3 scripts/check_database.py` | Lists tables with row counts. |
 | `python3 scripts/inspect_patient.py [id]` | Prints one patient (default `demo`) as the API returns it. |
 | `python3 scripts/search_research.py [query]` | Searches the stored research evidence. |
+| `python3 scripts/seed_accounts.py` | Creates the demo logins, doctor directory, connections and open slots. |
 | `uvicorn backend.api:app --reload --port 8000` | Runs the API. Swagger UI at `/docs`. |
 
 Two file formats are supported by the ingest script:
@@ -98,6 +102,16 @@ Two file formats are supported by the ingest script:
 | `appointment_questions` | Questions for the next visit, with who added them. |
 | `research_sources` | Research evidence (Amass stand-in) with DOI links. |
 | `files` | Uploaded patient files (metadata only). |
+| `users` | Accounts: email, password hash, role, and the patient or clinician they are. |
+| `sessions` | Signed-in sessions (the cookie's token). |
+| `invite_codes` | Codes that allow creating a doctor account. |
+| `care_connections` | Which doctor and patient are connected, and the request lifecycle. |
+| `messages` | Doctor–patient conversation, one thread per connection. |
+| `availability_slots` | Times a doctor published for booking. |
+| `summary_versions` | Every version of a patient-facing summary, AI or clinician. |
+| `audit_log` | Who opened, edited, approved or messaged, per patient. |
+
+Accounts, connections, the calendar and messaging are explained in [ACCOUNTS.md](ACCOUNTS.md).
 
 Clinician-in-the-loop is enforced in the data: the API only returns a summary's
 body once `status = 'approved'`, so an unapproved draft can never reach a patient.
@@ -110,13 +124,17 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 | [`backend/models.py`](../backend/models.py) | Database rows → the JSON shapes in `lib/patient-api/types.ts`. |
 | [`backend/retrieval.py`](../backend/retrieval.py) | Reads and writes patient data; `get_patient_context()` is what the RAG layer will feed to Nebius. |
 | [`backend/agent.py`](../backend/agent.py) | Scripted Health Agent over the patient's own rows — the Python twin of the mock agent. **Replace `answer()` with the Nebius call**, keeping the reply shape. |
-| [`backend/api.py`](../backend/api.py) | FastAPI app implementing [docs/PATIENT_API.md](PATIENT_API.md), plus summary approval and research search. |
+| [`backend/api.py`](../backend/api.py) | FastAPI app implementing [PATIENT_API.md](PATIENT_API.md) and the account, connection, calendar and messaging routes. |
+| [`backend/auth.py`](../backend/auth.py) | Registration, login, sessions, and the current-user dependency. |
+| [`backend/care.py`](../backend/care.py) | Doctor directory, connections and messages. |
+| [`backend/schedule.py`](../backend/schedule.py) | Availability slots and appointments. |
+| [`backend/summaries.py`](../backend/summaries.py) | Summary editing with a version trail. |
+| [`backend/audit.py`](../backend/audit.py) | The audit log. |
 
 ## What is not connected yet
 
-- **The clinician dashboard still reads the TypeScript demo data** (`lib/demo`), not
-  the database. The API already exposes the approval step
-  (`POST /api/v1/patients/{id}/summaries/{summaryId}/approve`), so it can move over
-  view by view.
+- **The offline demo** (`NEXT_PUBLIC_API_MODE=mock`) still runs on the TypeScript demo
+  data in the browser, including Borna's original clinician screens. With accounts
+  switched on, both views read the database.
 - **Nebius** is not wired in: `backend/agent.py` is a scripted stand-in.
 - **Amass** is not wired in: `research_sources` holds the papers the demo cites.

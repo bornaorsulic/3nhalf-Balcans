@@ -1,6 +1,6 @@
 {
   "format": "longevity-demo/v1",
-  "generatedAt": "2026-09-12T06:46:14.469Z",
+  "generatedAt": "2026-09-12T08:49:25.638Z",
   "patient": {
     "id": "demo",
     "firstName": "Sofia",
@@ -780,7 +780,7 @@
       "id": "sum-checkins-review",
       "title": "Your check-ins, sleep and recent blood test",
       "status": "in_review",
-      "createdAt": "2026-09-11T06:46:14.469Z",
+      "createdAt": "2026-09-11T08:49:25.638Z",
       "approvedAt": null,
       "approvedByClinicianId": null,
       "readAt": null,
@@ -859,10 +859,10 @@
       "id": "sum-spring-checkup",
       "title": "Results from your spring check-up",
       "status": "approved",
-      "createdAt": "2026-03-12T07:46:14.469Z",
+      "createdAt": "2026-03-12T09:49:25.638Z",
       "approvedAt": "2026-03-14T10:05:00.000Z",
       "approvedByClinicianId": "clin-eriksson",
-      "readAt": "2026-03-16T07:46:14.469Z",
+      "readAt": "2026-03-16T09:49:25.638Z",
       "body": {
         "whatWeSee": "Your fasting glucose was 101 mg/dL, just above the typical range, and hs-CRP was 1.9 mg/L. Vitamin D was 27 ng/mL, slightly low. Thyroid and iron were normal.",
         "whatItMeans": "These results are an early signal worth watching, not a diagnosis. Small, steady changes to activity and sleep make the biggest difference at this stage.",
@@ -899,7 +899,7 @@
       "id": "q-seed-1",
       "text": "Why am I so tired in the afternoons?",
       "origin": "patient",
-      "createdAt": "2026-09-08T06:46:14.469Z"
+      "createdAt": "2026-09-08T08:49:25.638Z"
     }
   ],
   "research": [

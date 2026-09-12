@@ -220,6 +220,159 @@ TABLES: list[tuple[str, str]] = [
         );
         """,
     ),
+    (
+        # ---- Accounts ----
+        "users",
+        """
+        CREATE TABLE IF NOT EXISTS users (
+            id VARCHAR(50) PRIMARY KEY,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            role VARCHAR(20) NOT NULL CHECK (role IN ('patient', 'clinician')),
+            display_name VARCHAR(255),
+            patient_id VARCHAR(50) REFERENCES patients(id) ON DELETE SET NULL,
+            clinician_id VARCHAR(50) REFERENCES clinicians(id) ON DELETE SET NULL,
+            consent_accepted_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """,
+    ),
+    (
+        "sessions",
+        """
+        CREATE TABLE IF NOT EXISTS sessions (
+            token VARCHAR(64) PRIMARY KEY,
+            user_id VARCHAR(50) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMPTZ NOT NULL
+        );
+        """,
+    ),
+    (
+        # Doctor accounts are not self-service: registering as a clinician needs a code.
+        "invite_codes",
+        """
+        CREATE TABLE IF NOT EXISTS invite_codes (
+            code VARCHAR(50) PRIMARY KEY,
+            role VARCHAR(20) NOT NULL DEFAULT 'clinician',
+            clinician_id VARCHAR(50) REFERENCES clinicians(id) ON DELETE SET NULL,
+            used_by VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+            used_at TIMESTAMPTZ,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """,
+    ),
+    (
+        # ---- Care network (N:N doctors <-> patients) ----
+        "care_connections",
+        """
+        CREATE TABLE IF NOT EXISTS care_connections (
+            id VARCHAR(50) PRIMARY KEY,
+            patient_id VARCHAR(50) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+            clinician_id VARCHAR(50) NOT NULL REFERENCES clinicians(id) ON DELETE CASCADE,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending'
+                CHECK (status IN ('pending', 'accepted', 'rejected', 'ended')),
+            initiated_by VARCHAR(20) NOT NULL CHECK (initiated_by IN ('patient', 'clinician')),
+            request_note TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            responded_at TIMESTAMPTZ,
+            ended_at TIMESTAMPTZ,
+            ended_by VARCHAR(20),
+            UNIQUE (patient_id, clinician_id)
+        );
+        """,
+    ),
+    (
+        # One thread per connection; history is kept when a connection ends.
+        "messages",
+        """
+        CREATE TABLE IF NOT EXISTS messages (
+            id VARCHAR(50) PRIMARY KEY,
+            connection_id VARCHAR(50) NOT NULL REFERENCES care_connections(id) ON DELETE CASCADE,
+            sender_role VARCHAR(20) NOT NULL CHECK (sender_role IN ('patient', 'clinician')),
+            sender_user_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+            body TEXT NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            read_at TIMESTAMPTZ
+        );
+        """,
+    ),
+    (
+        # ---- Calendar ----
+        "availability_slots",
+        """
+        CREATE TABLE IF NOT EXISTS availability_slots (
+            id VARCHAR(50) PRIMARY KEY,
+            clinician_id VARCHAR(50) NOT NULL REFERENCES clinicians(id) ON DELETE CASCADE,
+            starts_at TIMESTAMPTZ NOT NULL,
+            duration_minutes INTEGER NOT NULL DEFAULT 30,
+            status VARCHAR(20) NOT NULL DEFAULT 'open'
+                CHECK (status IN ('open', 'booked', 'blocked')),
+            location TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (clinician_id, starts_at)
+        );
+        """,
+    ),
+    (
+        # ---- Clinician-in-the-loop: every edit of an AI summary is kept ----
+        "summary_versions",
+        """
+        CREATE TABLE IF NOT EXISTS summary_versions (
+            id SERIAL PRIMARY KEY,
+            summary_id VARCHAR(80) NOT NULL REFERENCES summaries(id) ON DELETE CASCADE,
+            version INTEGER NOT NULL,
+            source VARCHAR(20) NOT NULL DEFAULT 'ai' CHECK (source IN ('ai', 'clinician')),
+            edited_by VARCHAR(50) REFERENCES clinicians(id) ON DELETE SET NULL,
+            what_we_see TEXT,
+            what_it_means TEXT,
+            next_steps JSONB DEFAULT '[]'::jsonb,
+            questions_for_visit JSONB DEFAULT '[]'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (summary_id, version)
+        );
+        """,
+    ),
+    (
+        # ---- Who did what with a patient record ----
+        "audit_log",
+        """
+        CREATE TABLE IF NOT EXISTS audit_log (
+            id SERIAL PRIMARY KEY,
+            actor_user_id VARCHAR(50) REFERENCES users(id) ON DELETE SET NULL,
+            actor_role VARCHAR(20),
+            actor_name VARCHAR(255),
+            action VARCHAR(60) NOT NULL,
+            patient_id VARCHAR(50) REFERENCES patients(id) ON DELETE CASCADE,
+            subject_id VARCHAR(80),
+            detail TEXT,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        """,
+    ),
+]
+
+# Columns added to tables that existed before accounts and the care network.
+ALTERS = [
+    # Doctor directory: what patients search and filter by.
+    "ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS specialty VARCHAR(255);",
+    "ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS city VARCHAR(255);",
+    "ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS languages JSONB DEFAULT '[]'::jsonb;",
+    "ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS bio TEXT;",
+    "ALTER TABLE clinicians ADD COLUMN IF NOT EXISTS accepting_new_patients BOOLEAN DEFAULT TRUE;",
+    # Appointment lifecycle: booked from a slot, cancellable, reschedulable.
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS slot_id VARCHAR(50) REFERENCES availability_slots(id) ON DELETE SET NULL;",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS status VARCHAR(20) NOT NULL DEFAULT 'booked';",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_by VARCHAR(20);",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS duration_minutes INTEGER DEFAULT 30;",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS cancelled_by VARCHAR(20);",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS rescheduled_from VARCHAR(50);",
+    "ALTER TABLE appointments ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;",
+    # Summaries now carry a version pointer and an edit trail.
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS current_version INTEGER DEFAULT 1;",
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS edited_by VARCHAR(50);",
+    "ALTER TABLE summaries ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ;",
 ]
 
 INDEXES = [
@@ -227,6 +380,13 @@ INDEXES = [
     "CREATE INDEX IF NOT EXISTS diary_patient_date_idx ON diary_entries (patient_id, date DESC);",
     "CREATE INDEX IF NOT EXISTS wearable_patient_date_idx ON wearable_data (patient_id, date);",
     "CREATE INDEX IF NOT EXISTS summaries_patient_idx ON summaries (patient_id, created_at DESC);",
+    "CREATE INDEX IF NOT EXISTS sessions_user_idx ON sessions (user_id);",
+    "CREATE INDEX IF NOT EXISTS connections_patient_idx ON care_connections (patient_id, status);",
+    "CREATE INDEX IF NOT EXISTS connections_clinician_idx ON care_connections (clinician_id, status);",
+    "CREATE INDEX IF NOT EXISTS messages_connection_idx ON messages (connection_id, created_at);",
+    "CREATE INDEX IF NOT EXISTS slots_clinician_idx ON availability_slots (clinician_id, starts_at);",
+    "CREATE INDEX IF NOT EXISTS appointments_patient_idx ON appointments (patient_id, starts_at);",
+    "CREATE INDEX IF NOT EXISTS audit_patient_idx ON audit_log (patient_id, created_at DESC);",
 ]
 
 
@@ -254,6 +414,9 @@ def create_tables() -> None:
         for name, statement in TABLES:
             cursor.execute(statement)
             print(f"  table ready: {name}")
+        for statement in ALTERS:
+            cursor.execute(statement)
+        print(f"  columns ready: {len(ALTERS)} checked")
         for statement in INDEXES:
             cursor.execute(statement)
 
