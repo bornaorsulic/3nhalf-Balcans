@@ -49,6 +49,27 @@ def plain_observations(context):
             lines.append(f"{obs['label']}: {obs['before']:g} → {obs['now']:g} {obs['unit']}{change}, first versus latest seven recorded days.")
     return lines
 
+# Models sometimes quote the internal evidence id in the prose ("as shown in
+# e-1137a6759cb4f9f4"), which is meaningless to a reader. Swap it for the paper's
+# title where we know it, and drop it otherwise.
+EVIDENCE_ID = re.compile(r'[\(\[]?\b((?:e-[0-9a-f]{6,})|(?:res-[a-z0-9-]+))\b[\)\]]?', re.I)
+
+def name_evidence_ids(text, evidence):
+    if not isinstance(text, str) or not text:
+        return text
+    titles = {item['id']: item['title'] for item in evidence}
+
+    def swap(match):
+        title = titles.get(match.group(1))
+        return f'"{title}"' if title else ''
+
+    cleaned = EVIDENCE_ID.sub(swap, text)
+    # Tidy what removal leaves behind: dangling connectives and doubled spacing.
+    cleaned = re.sub(r'\b(?:in|from|of|by|see)\s*(?=[,.;:])', '', cleaned)
+    cleaned = re.sub(r'\s+([,.;:])', r'\1', cleaned)
+    cleaned = re.sub(r'[ \t]{2,}', ' ', cleaned)
+    return cleaned.strip()
+
 def cited_sources(model, evidence):
     by_id = {item['id']: item for item in evidence}
     result, seen = [], set()
@@ -218,7 +239,10 @@ class HealthAgent:
         for index, risk in enumerate(result.riskSignals):
             risk.id = f'risk-{index + 1}'
         confidence = result.confidence if citations else 'low'
-        answer = result.answer
+        answer = name_evidence_ids(result.answer, evidence.items)
+        for risk in result.riskSignals:
+            risk.explanation = name_evidence_ids(risk.explanation, evidence.items)
+            risk.preventionStep = name_evidence_ids(risk.preventionStep, evidence.items)
         if mode == 'fallback':
             answer += '\n\nAI synthesis is unavailable; this is a limited summary of recorded data.'
         draft_summary = self._draft_summary_from_answer(result, citations)
@@ -238,7 +262,9 @@ class HealthAgent:
         if not citations and evidence.items:
             citations = retrieved_sources(evidence.items)
         confidence = result.confidence if citations else 'low'
-        answer = result.answer
+        answer = name_evidence_ids(result.answer, evidence.items)
+        result.keyTakeaways = [name_evidence_ids(line, evidence.items) for line in result.keyTakeaways]
+        result.studyNotes = [name_evidence_ids(line, evidence.items) for line in result.studyNotes]
         if mode == 'fallback':
             answer += '\n\nAI synthesis is unavailable; this is a limited research retrieval summary.'
 

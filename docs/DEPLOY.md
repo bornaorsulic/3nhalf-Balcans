@@ -208,8 +208,17 @@ Everything lives in `/opt/longevity/app` on the VM, which is a normal clone of t
 repo. Deploying is `git pull` plus a rebuild — there is no registry and no pipeline.
 
 ```bash
-ssh -A ubuntu@<vm-ip> 'cd /opt/longevity/app && git pull && cd deploy && docker compose up -d --build'
+ssh -A ubuntu@<vm-ip> 'cd /opt/longevity/app && git pull && cd deploy \
+  && docker compose up -d --build \
+  && docker compose run --rm backend python scripts/setup_database.py'
 ```
+
+**Always run the migration**, even when you think the schema did not change. It is
+idempotent, takes about a second, and skipping it is the one deployment mistake that does
+not announce itself: the containers start healthy, the site loads, and only the screens
+touching the new column fail. A missing `files.extracted_text` once took down the Health
+Agent in *both* views at the same time, because every agent answer loads the same patient
+context.
 
 The `-A` matters: the VM has no credentials of its own and clones through your forwarded
 SSH agent. If `git pull` says *"Please make sure you have the correct access rights"*, you
@@ -319,6 +328,8 @@ way: this is a demo, not a system anyone should put a real record into.
 | The backend container hangs at startup | `DATABASE_URL` is missing, so the script is waiting for a password on a terminal that is not there. |
 | `certificate verify failed` | The CA is not mounted, or `sslrootcert` does not point at `/etc/ssl/nebius/ca.pem` (the path *inside* the container). |
 | `relation "users" does not exist` | Step 4 was not run. |
+| `column "…" does not exist`, and the Health Agent fails in every view | A deploy skipped `scripts/setup_database.py`. Run it; it adds new columns and leaves data alone. |
+| The chat says "I couldn't reach the Health Agent" | The frontend shows that for any failed request, including a backend 500. Check `docker compose logs backend` for the real error before assuming a network problem. |
 | The tunnel URL 502s | Caddy is not up, or the agent is pointed at the wrong port: it must be `localhost:8080`. |
 | A bind mount shows up as an empty directory in the container | The host path in `.env` has a typo. Docker creates a directory rather than failing, and the error surfaces later as "no certificate found" or "is a directory". |
 | `SASL authentication failed` | The database password is wrong. The rest of the connection string is fine, or you would see a different error. |

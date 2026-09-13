@@ -104,7 +104,7 @@ Required shape:
   },
   "citations": [{"id": "one RETRIEVED_EVIDENCE id", "relevance": "why this evidence matters"}]
 }
-Use only citation ids that appear in RETRIEVED_EVIDENCE. If evidence is weak, use an empty citations array.'''
+Use only citation ids that appear in RETRIEVED_EVIDENCE. Never write an evidence id in prose; ids belong only in the citations array. If evidence is weak, use an empty citations array.'''
 
     if title == 'ModelResearchAnswer':
         return '''/no_think
@@ -118,7 +118,7 @@ Required shape:
   "citations": [{"id": "one RETRIEVED_EVIDENCE id", "relevance": "what this evidence supports"}],
   "confidence": "low|moderate|high"
 }
-Use only citation ids that appear in RETRIEVED_EVIDENCE. If evidence is weak, use an empty citations array and say what is missing.'''
+Use only citation ids that appear in RETRIEVED_EVIDENCE. Never write an evidence id in prose; ids belong only in the citations array. If evidence is weak, use an empty citations array and say what is missing.'''
 
     return '''/no_think
 Return exactly one JSON object for the clinician. Do not return a schema, "$defs", "properties", markdown, or prose outside JSON.
@@ -139,4 +139,4 @@ Required shape:
   "citations": [{"id": "one RETRIEVED_EVIDENCE id", "relevance": "what the evidence supports"}],
   "confidence": "low|moderate|high"
 }
-Use only citation ids that appear in RETRIEVED_EVIDENCE. If evidence is weak, use an empty citations array.'''
+Use only citation ids that appear in RETRIEVED_EVIDENCE. Never write an evidence id in prose; ids belong only in the citations array. If evidence is weak, use an empty citations array.'''
