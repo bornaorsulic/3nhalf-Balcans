@@ -291,6 +291,8 @@ export interface ParsedDocument {
   fileId: number;
   filename: string;
   readable: boolean;
+  /** Why nothing was read, when readable is false. */
+  reason?: "scanned" | "encrypted" | "unsupported" | "damaged" | "missing" | "";
   biomarkers: { name: string; value: number; unit: string; referenceLow: number | null; referenceHigh: number | null }[];
   genetics: { gene: string; variant: string; genotype: string }[];
 }

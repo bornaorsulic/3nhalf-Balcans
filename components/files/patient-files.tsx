@@ -151,9 +151,7 @@ export function PatientFiles({ patientId, canImport = false }: { patientId: stri
         <div className="mb-3 rounded-md border p-3">
           <p className="text-sm font-semibold">Read from {parsed.filename}</p>
           {!parsed.readable ? (
-            <p className="mt-1 text-sm text-muted-foreground">
-              No text could be read from this file. Scans and photographs need to be typed in by hand.
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{unreadableReason(parsed.reason)}</p>
           ) : parsed.biomarkers.length === 0 && parsed.genetics.length === 0 ? (
             <p className="mt-1 text-sm text-muted-foreground">
               The text was readable but nothing looked like a result. Nothing has been added.
@@ -254,4 +252,22 @@ export function PatientFiles({ patientId, canImport = false }: { patientId: stri
       </div>
     </div>
   );
+}
+
+/** Why a document produced no text — a clinician can act on the difference. */
+function unreadableReason(reason: ParsedDocument["reason"]) {
+  switch (reason) {
+    case "scanned":
+      return "This looks like a scan or photograph: it has a picture of text, not text. Reading values out of it needs them typed in by hand.";
+    case "encrypted":
+      return "This PDF is password-protected, so it cannot be read. Ask for an unlocked copy, or save it without a password and upload it again.";
+    case "unsupported":
+      return "This file type cannot be read for values. PDF, Word (.docx), CSV and plain text work; images and the older .doc format do not.";
+    case "damaged":
+      return "This file could not be opened — it may be incomplete or corrupted. Try downloading it from the source again.";
+    case "missing":
+      return "The stored copy of this file is no longer on the server, so it cannot be read again.";
+    default:
+      return "No text could be read from this file.";
+  }
 }

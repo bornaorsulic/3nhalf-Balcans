@@ -98,7 +98,7 @@ written in.
 | Inbox | Clinician-approved summaries: what we see, what it means, next steps, questions for your visit |
 | Appointment prep | Add suggested questions to a list you bring to the visit |
 | Care | Find doctors (searchable by language), request a connection, message, book from a month calendar |
-| Files | Upload blood work and reports; download them again |
+| Files | Upload blood work and reports (PDF, Word, CSV, text); download them again |
 | Exports | Approved summary as PDF, recent results as CSV |
 | Onboarding | A first-steps checklist, and a deliberately empty second demo patient so the product can be shown as a new user meets it |
 
@@ -111,7 +111,7 @@ written in.
 | **Ask** tab | The Health Agent in clinician mode: risk signals, citations, follow-up questions, confidence, and a one-click patient draft |
 | Research chat | General study questions before a patient is selected; evidence retrieved and synthesised with citations |
 | Summary review | Edit with a full version trail, request changes, or approve — only approved text reaches the patient |
-| File import | "Read values" parses biomarkers and gene results out of an uploaded PDF; the clinician ticks off what is correct before anything joins the record |
+| File import | "Read values" parses biomarkers and gene results out of an uploaded report; the clinician ticks off what is correct before anything joins the record |
 | Inbox | Every patient message thread in one place, without opening each record |
 | Calendar | A weekly availability template generating eight weeks, a week grid, and per-slot blocking |
 

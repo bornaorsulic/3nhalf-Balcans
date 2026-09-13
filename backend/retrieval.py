@@ -363,6 +363,13 @@ def search_research(query: str, limit: int = 5) -> list[dict]:
 # ---------- Agent context ----------
 
 
+def set_extracted_text(file_id: int, text: str) -> None:
+    """Keep text found by a later extractor, so a file is only read once."""
+    with connect() as connection, connection.cursor() as cursor:
+        cursor.execute("UPDATE files SET extracted_text = %s WHERE id = %s;", (text, file_id))
+        connection.commit()
+
+
 def get_document_texts(patient_id: str, limit: int = 6) -> list[dict]:
     """Uploaded documents the agent can actually read.
 

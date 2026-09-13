@@ -22,7 +22,9 @@ import re
 import sys
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
+import unicodedata
+import urllib.parse
+from pathlib import Path, PurePosixPath, PureWindowsPath
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -273,9 +275,33 @@ def set_session_cookie(response: Response, token: str) -> None:
 
 
 def safe_filename(filename: str) -> str:
-    stem = Path(filename or "upload").name
-    stem = re.sub(r"[^A-Za-z0-9._ -]", "_", stem).strip(" .")
+    """A name safe to put on disk and in a header, keeping the one the user chose.
+
+    Accented letters survive — "Blodprov über 2026.pdf" is a normal filename in the
+    languages this is used in, and mangling it makes a downloaded file hard to
+    recognise. What does not survive: path separators, control characters, and
+    anything that could steer a Content-Disposition header.
+    """
+    stem = PurePosixPath(PureWindowsPath(filename or "upload").name).name
+    stem = "".join("_" if ord(ch) < 32 or ch in '\\/:*?"<>|\x7f' else ch for ch in stem)
+    stem = unicodedata.normalize("NFC", stem).strip(" .")
     return stem[:120] or "upload"
+
+
+def attachment_header(filename: str) -> str:
+    """Content-Disposition that survives a non-ASCII name.
+
+    HTTP headers are latin-1, so a Cyrillic or Chinese filename raises on the way
+    out. RFC 5987 covers it: an ASCII fallback every client understands, plus the
+    real name in filename*.
+    """
+    name = safe_filename(filename)
+    ascii_name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    if not PurePosixPath(ascii_name).stem:
+        # A name with no ASCII letters at all still deserves a usable fallback.
+        ascii_name = "download" + PurePosixPath(name).suffix[:10]
+    quoted = urllib.parse.quote(name, safe="")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quoted}"
 
 
 def export_filename(prefix: str, extension: str) -> str:
@@ -572,7 +598,7 @@ def export_summary_pdf(patient_id: str, summary_id: str, user: dict = Depends(cu
     return Response(
         content=pdf,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": attachment_header(filename)},
     )
 
 
@@ -588,7 +614,7 @@ def export_results(patient_id: str, format: str = "csv", user: dict = Depends(cu
         return Response(
             content=json.dumps(payload),
             media_type="application/json",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            headers={"Content-Disposition": attachment_header(filename)},
         )
     if normalized != "csv":
         raise HTTPException(status_code=400, detail="Export format must be csv or json")
@@ -599,7 +625,7 @@ def export_results(patient_id: str, format: str = "csv", user: dict = Depends(cu
     return Response(
         content=csv_text,
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        headers={"Content-Disposition": attachment_header(filename)},
     )
 
 
@@ -864,6 +890,18 @@ async def send_voice_message(connection_id: str, request: Request, user: dict = 
     return message
 
 
+def stored_path(row: dict) -> Path | None:
+    """The file on disk, or None. Never lets a stored path escape UPLOAD_DIR."""
+    path = Path(row.get("file_path") or "")
+    if not path.name:
+        return None
+    if not path.is_absolute():
+        path = (UPLOAD_DIR / path).resolve()
+    if UPLOAD_DIR not in path.parents or not path.is_file():
+        return None
+    return path
+
+
 @app.get(PREFIX + "/patients/{patient_id}/files/{file_id}/download")
 def download_patient_file(patient_id: str, file_id: int, user: dict = Depends(current_user)) -> Response:
     """Give a file back to whoever may see the record it belongs to."""
@@ -872,18 +910,15 @@ def download_patient_file(patient_id: str, file_id: int, user: dict = Depends(cu
     if not row:
         raise HTTPException(status_code=404, detail="That file does not exist")
 
-    path = Path(row["file_path"])
-    # Never let a stored path escape the upload directory, whatever is in the row.
-    if not path.is_absolute():
-        path = (UPLOAD_DIR / path).resolve()
-    if UPLOAD_DIR not in path.parents or not path.is_file():
+    path = stored_path(row)
+    if not path:
         raise HTTPException(status_code=404, detail="That file is no longer stored")
 
     audit.log("downloaded_file", actor=user, patient_id=pid, subject_id=str(file_id), detail=row["filename"])
     return Response(
         content=path.read_bytes(),
         media_type=row.get("file_type") or "application/octet-stream",
-        headers={"Content-Disposition": f'attachment; filename="{safe_filename(row["filename"])}"'},
+        headers={"Content-Disposition": attachment_header(row["filename"])},
     )
 
 
@@ -900,11 +935,25 @@ def parse_patient_file(patient_id: str, file_id: int, user: dict = Depends(curre
         raise HTTPException(status_code=404, detail="That file does not exist")
 
     text = row.get("extracted_text") or ""
+    reason = ""
+    if not text:
+        # Either the file predates an extractor that can read it, or it genuinely
+        # has no text. Re-read it so an improved extractor applies to old uploads,
+        # and so we can tell the clinician which of the two it is.
+        path = stored_path(row)
+        if path:
+            text, reason = documents.extract(path.read_bytes(), row.get("file_type") or "", row["filename"])
+            if text:
+                retrieval.set_extracted_text(file_id, text)
+        else:
+            reason = "missing"
+
     return {
         "fileId": file_id,
         "filename": row["filename"],
         "readable": bool(text),
-        "biomarkers": documents.parse_biomarkers(text),
+        "reason": reason,
+        "biomarkers": documents.parse_results(text),
         "genetics": documents.parse_genetics(text),
     }
 

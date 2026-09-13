@@ -50,6 +50,31 @@ and download their own documents, but only a clinician confirms which parsed val
 the record. `apply` reuses the patient's existing biomarker rather than creating a second
 panel with the same name, and recomputes status from the reference range.
 
+**What can be read.** PDFs with a text layer, Word `.docx`, CSV/TSV exports with a header
+row, and plain text (UTF-8, or the cp1252/latin-1 that clinic systems still emit). Images,
+scans and the older binary `.doc` cannot be read for values — they are stored and
+downloadable like any other file. When nothing could be read, `parse` returns a `reason`
+so the clinician is told which case it is:
+
+| `reason` | Meaning |
+|---|---|
+| `scanned` | A PDF with a picture of text and no text layer |
+| `encrypted` | Password-protected PDF |
+| `unsupported` | An image, or a format with no text to extract |
+| `damaged` | The file could not be opened at all |
+| `missing` | The stored copy is no longer on the server |
+
+`parse` re-reads the file from disk when nothing was stored at upload time, so a document
+uploaded before an extractor could handle it starts working without re-uploading.
+
+**What the parser looks for.** Lines in the shapes labs actually print — a value with a
+unit, an optional `H`/`L` flag, and an optional reference range written as `(70 - 99)`,
+`<3.0`, `>60`, `0.4 to 4.0` or `Reference range: 30 - 100` — plus European decimal commas,
+`10^9/L`-style units, pipe tables and accented names. It deliberately ignores anything
+that reads like an age, a date, a phone number, a room or an order number, and any bare
+number with neither a unit nor a range. Uploaded CSVs are read by their header row
+instead. See [tests/test_documents.py](../tests/test_documents.py) for the exact cases.
+
 ### Agent and voice
 
 | Method | Path | Body | Returns |
