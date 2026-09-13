@@ -195,7 +195,10 @@ the scripted fallback. Provider keys are server-side only and are never prefixed
   variables in [app/theme.css](app/theme.css); the shadcn/ui names (`--primary`,
   `--card`, …) point at the same tokens as the patient screens. **To restyle the whole
   product, change that one file.**
-- **shadcn/ui + Radix + Recharts + lucide-react** for the clinician surface.
+- **shadcn/ui + Radix + lucide-react** for the clinician surface. Only the five
+  components the app actually uses are checked in (`badge`, `button`, `input`, `tabs`,
+  `textarea`); `components.json` is still configured, so add more with
+  `npx shadcn@latest add <name>`. The charts are hand-written SVG, not a chart library.
 
 ### Backend
 
@@ -207,7 +210,7 @@ the scripted fallback. Provider keys are server-side only and are never prefixed
 | [`amass.py`](backend/amass.py) | Evidence retrieval; public topic strings only, with a local fallback |
 | [`nebius.py`](backend/nebius.py) | OpenAI-compatible inference client; retries owned by the orchestrator |
 | [`contracts.py`](backend/contracts.py) | Pydantic models the generated JSON must validate against |
-| [`agent.py`](backend/agent.py) / [`clinician_agent.py`](backend/clinician_agent.py) | The scripted, grounded fallback answers for both audiences |
+| [`agent.py`](backend/agent.py) | The scripted, grounded answers used as the fallback for both audiences |
 | [`retrieval.py`](backend/retrieval.py) | Reading and writing patient data in the shapes the frontend expects |
 | [`documents.py`](backend/documents.py) | PDF text extraction and biomarker / gene parsing |
 | [`summaries.py`](backend/summaries.py) | Draft, edit, version trail, request changes, approve |

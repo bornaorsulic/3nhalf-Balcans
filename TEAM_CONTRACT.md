@@ -54,7 +54,7 @@ runtime.
 
 | Area | Lives in | Documented in |
 |---|---|---|
-| **Health Agent** — retrieval, prompts, Nebius, validation, safety | `backend/health_agent.py`, `nebius.py`, `prompts.py`, `contracts.py`, `agent.py`, `clinician_agent.py` | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
+| **Health Agent** — retrieval, prompts, Nebius, validation, safety | `backend/health_agent.py`, `nebius.py`, `prompts.py`, `contracts.py`, `agent.py` | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
 | **Data and evidence** — schema, ingest, Amass retrieval | `scripts/`, `backend/retrieval.py`, `backend/amass.py` | [docs/DATABASE.md](docs/DATABASE.md) |
 | **Clinician dashboard** — roster, record, Ask, review, calendar | `app/clinician/`, `components/clinician/` | [docs/ACCOUNTS.md](docs/ACCOUNTS.md) |
 | **Patient app** — home, chat, health, care, inbox | `app/patient/`, `components/patient/`, `lib/patient-api/` | [docs/PATIENT_API.md](docs/PATIENT_API.md) |

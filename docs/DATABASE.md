@@ -102,7 +102,7 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 | [`backend/models.py`](../backend/models.py) | Database rows → the JSON shapes in `lib/patient-api/types.ts`. |
 | [`backend/retrieval.py`](../backend/retrieval.py) | Reads and writes patient data; `get_patient_context()` is what the RAG layer will feed to Nebius. |
 | [`backend/health_agent.py`](../backend/health_agent.py) | The orchestrator: patient context → Amass retrieval → Nebius → schema validation → safety gate. |
-| [`backend/agent.py`](../backend/agent.py) / [`backend/clinician_agent.py`](../backend/clinician_agent.py) | The scripted, grounded answers, used as the fallback when the model is unavailable or its output fails validation. |
+| [`backend/agent.py`](../backend/agent.py) | The scripted, grounded answers, used as the fallback when the model is unavailable or its output fails validation. |
 | [`backend/documents.py`](../backend/documents.py) | PDF text extraction and biomarker / gene parsing for uploaded files. |
 | [`backend/voice.py`](../backend/voice.py) | ElevenLabs speech-to-text and text-to-speech; generated audio is cached in `files`. |
 | [`backend/exports.py`](../backend/exports.py) | Approved-summary PDF and results CSV. |
@@ -120,8 +120,7 @@ Every provider is optional: a missing key degrades one feature instead of breaki
 
 - **Nebius** synthesises agent answers. Without `NEBIUS_API_KEY`/`NEBIUS_MODEL` — or when
   the model's output fails schema validation or crosses the medication boundary — the
-  scripted answer in `backend/agent.py` / `backend/clinician_agent.py` is returned and
-  labelled as a fallback.
+  scripted answer in `backend/agent.py` is returned and labelled as a fallback.
 - **Amass** retrieves the studies an answer cites. Without `AMASS_BASE_URL` the
   `research_sources` table supplies the papers, with DOIs.
 - **ElevenLabs** provides voice. Without `ELEVENLABS_API_KEY` recording is unavailable and

@@ -239,10 +239,10 @@ product's central claim.**
 
 ## The scripted fallback
 
-[`backend/agent.py`](../backend/agent.py) (patient) and
-[`backend/clinician_agent.py`](../backend/clinician_agent.py) (clinician) are not dead
-code and not a mock — they are the answer whenever the model cannot be trusted or
-reached.
+[`backend/agent.py`](../backend/agent.py) is not dead code and not a mock — it is the
+answer whenever the model cannot be trusted or reached. `health_agent._fallback()` calls
+it for both audiences and adapts the wording, so there is **one** scripted path, not two
+that can drift apart.
 
 The fallback renders **neutral recorded observations** — "Fasting glucose: 108 mg/dL on
 2026-08-28; recorded status: high" — plus the note that these do not establish a
