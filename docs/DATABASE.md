@@ -101,7 +101,12 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 | [`backend/database.py`](../backend/database.py) | Connection helper (env vars or password prompt). |
 | [`backend/models.py`](../backend/models.py) | Database rows → the JSON shapes in `lib/patient-api/types.ts`. |
 | [`backend/retrieval.py`](../backend/retrieval.py) | Reads and writes patient data; `get_patient_context()` is what the RAG layer will feed to Nebius. |
-| [`backend/agent.py`](../backend/agent.py) | Scripted Health Agent over the patient's own rows — answering from the patient's own rows. **Replace `answer()` with the Nebius call**, keeping the reply shape. |
+| [`backend/health_agent.py`](../backend/health_agent.py) | The orchestrator: patient context → Amass retrieval → Nebius → schema validation → safety gate. |
+| [`backend/agent.py`](../backend/agent.py) / [`backend/clinician_agent.py`](../backend/clinician_agent.py) | The scripted, grounded answers, used as the fallback when the model is unavailable or its output fails validation. |
+| [`backend/documents.py`](../backend/documents.py) | PDF text extraction and biomarker / gene parsing for uploaded files. |
+| [`backend/voice.py`](../backend/voice.py) | ElevenLabs speech-to-text and text-to-speech; generated audio is cached in `files`. |
+| [`backend/exports.py`](../backend/exports.py) | Approved-summary PDF and results CSV. |
+| [`backend/demo_reset.py`](../backend/demo_reset.py) | Truncates the transient tables and re-runs the seed scripts. |
 | [`backend/api.py`](../backend/api.py) | FastAPI app implementing [PATIENT_API.md](PATIENT_API.md) and the account, connection, calendar and messaging routes. |
 | [`backend/auth.py`](../backend/auth.py) | Registration, login, sessions, and the current-user dependency. |
 | [`backend/care.py`](../backend/care.py) | Doctor directory, connections and messages. |
@@ -109,7 +114,17 @@ body once `status = 'approved'`, so an unapproved draft can never reach a patien
 | [`backend/summaries.py`](../backend/summaries.py) | Summary editing with a version trail. |
 | [`backend/audit.py`](../backend/audit.py) | The audit log. |
 
-## What is not connected yet
+## Providers, and what happens without them
 
-- **Nebius** is not wired in: `backend/agent.py` is a scripted stand-in.
-- **Amass** is not wired in: `research_sources` holds the papers the demo cites.
+Every provider is optional: a missing key degrades one feature instead of breaking the app.
+
+- **Nebius** synthesises agent answers. Without `NEBIUS_API_KEY`/`NEBIUS_MODEL` — or when
+  the model's output fails schema validation or crosses the medication boundary — the
+  scripted answer in `backend/agent.py` / `backend/clinician_agent.py` is returned and
+  labelled as a fallback.
+- **Amass** retrieves the studies an answer cites. Without `AMASS_BASE_URL` the
+  `research_sources` table supplies the papers, with DOIs.
+- **ElevenLabs** provides voice. Without `ELEVENLABS_API_KEY` recording is unavailable and
+  playback falls back to browser speech synthesis.
+
+`python3 scripts/check_providers.py --live` reports what is configured and reachable.
