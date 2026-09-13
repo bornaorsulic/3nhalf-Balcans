@@ -1,167 +1,160 @@
-# Longevity Health Agent
+<div align="center">
 
-An evidence-grounded health assistant with **two views of one patient record** — a
-phone-sized patient app and a clinician desktop — where every AI answer carries its
-sources, and nothing an AI writes reaches a patient until a clinician has approved it.
+# 🧬 Longevity Health Agent
 
-Built for the AI longevity hackathon. Next.js 16 / React 19 on the front, Python
-(FastAPI) and PostgreSQL behind, with Nebius for inference, Amass for evidence and
-ElevenLabs for voice. Hosted end to end on Nebius AI Cloud.
+### *Your health, explained — reviewed by your clinician.*
 
-> Prototype with fictional patients. Not medical advice, and not for real patient data.
+[![Longevity Hackathon](https://img.shields.io/badge/Longevity%20Hackathon-2026-blue?style=flat-square)](https://luma.com/5b82vwsa?tk=EzzkOW)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs)](https://nextjs.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=black)](https://react.dev)
+[![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Data-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 
----
-
-## The problem
-
-A patient gets a lab report — fasting glucose 108 mg/dL, hs-CRP 3.1, vitamin D 24 — and
-has no idea what it means. They search, find contradictory advice, and arrive at a
-15-minute appointment without the right questions. Their doctor has a year of results,
-30 days of wearable data, a genetic panel, daily check-ins and a stack of uploaded PDFs,
-and minutes to read all of it.
-
-A general chatbot fails here in two specific ways: it **doesn't know this patient's
-numbers**, and it **can't be held to a source**. This app closes both gaps without
-letting a model speak to a patient unsupervised.
+</div>
 
 ---
 
-## The two headline features
+## Problem and Intended User
 
-### 1. The evidence-grounded Health Agent
+A patient receives a lab report — fasting glucose 108 mg/dL, hs-CRP 3.1, vitamin D 24 —
+and has no idea what it means. They search the web, find contradictory advice, and walk
+into a 15-minute appointment without the right questions.
 
-Not a chat box bolted onto a health app — a pipeline with a defined shape at every step:
+At the same time, their clinician has to make sense of a year of blood results, 30 days
+of wearable data, genetic markers, daily check-ins and uploaded reports in just a few
+minutes.
 
-```txt
-patient context  →  Amass retrieval  →  Nebius synthesis  →  schema validation  →  safety gate  →  UI
-   labs, trends       public topic         JSON answer         pydantic contract     red flags
-   genetics,          strings only         + citation ids      (backend/contracts)   + medication
-   check-ins,                                                                        boundary
-   uploaded docs
+The intended users are:
+
+| User | What they need |
+|---|---|
+| Patients | Plain-language explanations, appointment questions, and a way to understand their own records without being given unsupervised medical advice |
+| Clinicians | A fast, source-linked view of risk signals, trends, documents and patient context before deciding what the patient should see |
+
+A general chatbot fails in this setting because it usually **does not know this
+patient's numbers**, **cannot be held to a source**, and **should not send medical
+guidance directly to a patient without a clinician in the loop**.
+
+---
+
+## What We Built and Why
+
+Longevity Health Agent is an evidence-grounded health assistant with **two views of one
+patient record**:
+
+- **A phone-sized patient app** for check-ins, health data, appointment prep, care
+  connections, messaging, files, exports and plain-language questions.
+- **A clinician desktop** for the patient roster, record review, AI-assisted analysis,
+  summary drafting, document import, messaging and scheduling.
+- **A shared Health Agent** that assembles patient context, retrieves evidence, generates
+  a structured answer, validates it, applies safety checks, and only lets patient-facing
+  summaries through after clinician approval.
+
+We built it this way because longevity care sits between everyday behavior and clinical
+decision-making. Patients need understandable guidance, but the system must respect the
+medical boundary: no diagnosis, no prescribing, no dosing and no unreviewed AI summary
+shown as if it came from a doctor.
+
+Through three core experiences:
+
+- **Evidence-grounded health answers** — answers cite patient data and retrieved research
+  instead of inventing sources.
+- **Clinician-in-the-loop summaries** — AI can draft, but a clinician edits and approves
+  before patients see the result.
+- **Voice and document support** — patients and doctors can speak questions, hear answers,
+  upload reports, and parse biomarkers from files.
+
+---
+
+## Working Demo
+
+### Live demo flow
+
+Run the app locally, then open `http://localhost:5173`.
+
+```bash
+# 1. Install frontend dependencies
+npm install
+
+# 2. Install backend dependencies
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+# 3. Create the database and seed demo data
+python3 scripts/setup_database.py
+npm run export:demo
+python3 scripts/ingest_patient.py
+python3 scripts/seed_accounts.py
+
+# 4. Run the API
+uvicorn backend.api:app --reload --port 8000
 ```
 
-- **It knows the patient.** Labs with history, wearable trends, check-ins, genetics and
-  the extracted text of uploaded documents are assembled into the prompt
-  ([backend/prompts.py](backend/prompts.py)). Answers reference *this* patient's glucose
-  trend, not glucose in general.
-- **Citations cannot be invented.** The model selects citations by **id** from what
-  retrieval actually returned; anything it cites that was not retrieved is dropped, and
-  generated text containing a URL or DOI is rejected outright. Links come from the
-  retrieval record, never from the model.
-- **It fails safely, not silently.** If the model's output does not validate against the
-  response schema, or crosses a medication/dosing boundary, a scripted grounded answer
-  takes over and the response is labelled as such. There is no path where a malformed
-  model answer reaches a patient.
-- **Urgent symptoms short-circuit everything.** Chest pain, confusion with fever, stroke
-  signs — a safety banner replaces the answer, on both the client
-  ([lib/safety.ts](lib/safety.ts)) and the server ([backend/agent.py](backend/agent.py)).
-- **Privacy is structural.** For patient questions, only **fixed public topic strings**
-  ("glycemic risk lifestyle prevention") leave the server. Names, values and diary text
-  are never sent to the search provider. The research chat scrubs identifiers before
-  querying ([backend/amass.py](backend/amass.py)).
+In a second terminal:
 
-**Two audiences, one engine.** The patient gets plain language, sources and questions to
-bring to the visit. The clinician gets the same evidence with **risk signals,
-confidence, follow-up questions and a one-click patient draft**. Doctors also get a
-**research chat** for general study questions before a patient is even selected.
+```bash
+npm run dev
+```
 
-### 2. The voice health assistant (ElevenLabs)
+Then sign in with any demo account. Every demo account uses the password `demo1234`.
 
-Voice runs through the whole product, not one screen:
-
-- **Speak to it** — `scribe_v2` transcribes on patient chat, clinician Ask, research chat
-  and message threads.
-- **Listen to it** — `eleven_multilingual_v2` reads out agent answers, approved summaries
-  and messages. Generated audio is cached per patient by content hash, so re-reading
-  costs nothing. Browser speech synthesis covers an unconfigured key.
-- **A deliberate design choice:** in doctor–patient threads the recorder **transcribes
-  into the message box rather than sending audio.** Speech recognition mishears, and a
-  misheard symptom must be correctable *before* the other side reads it. Voice notes
-  remain where the recording itself is the point.
-
-This matters most for the people longevity care reaches least well: older patients,
-anyone reading on a phone, anyone whose first language is not the one the report is
-written in.
-
----
-
-## Everything else
-
-### Patient app (`/patient`)
-
-| Feature | What it does |
+| Account | Who |
 |---|---|
-| Daily check-in | Energy, sleep quality, mood and notes in about a minute; appears in the clinician's record immediately |
-| Health data | Labs with a year of history and reference ranges, 30 days of wearables, genetics — in plain language with status pills |
-| Trend charts | Sparklines and full trend charts with pinch, wheel and drag zoom, range selection and event markers |
-| Health Agent chat | Plain-language answers with sources, safety banners and suggested questions |
-| Inbox | Clinician-approved summaries: what we see, what it means, next steps, questions for your visit |
-| Appointment prep | Add suggested questions to a list you bring to the visit |
-| Care | Find doctors (searchable by language), request a connection, message, book from a month calendar |
-| Files | Upload blood work and reports (PDF, Word, CSV, text); download them again |
-| Exports | Approved summary as PDF, recent results as CSV |
-| Onboarding | A first-steps checklist, and a deliberately empty second demo patient so the product can be shown as a new user meets it |
-
-### Clinician desktop (`/clinician`)
-
-| Feature | What it does |
-|---|---|
-| Roster | Connected patients, pending requests, and who has a summary waiting for review |
-| Patient record | Labs, wearables, genetics, check-ins, files and the audit trail in one view |
-| **Ask** tab | The Health Agent in clinician mode: risk signals, citations, follow-up questions, confidence, and a one-click patient draft |
-| Research chat | General study questions before a patient is selected; evidence retrieved and synthesised with citations |
-| Summary review | Edit with a full version trail, request changes, or approve — only approved text reaches the patient |
-| File import | "Read values" parses biomarkers and gene results out of an uploaded report; the clinician ticks off what is correct before anything joins the record |
-| Inbox | Every patient message thread in one place, without opening each record |
-| Calendar | A weekly availability template generating eight weeks, a week grid, and per-slot blocking |
-
-### Shared
-
-Accounts with sessions and invite-only doctor registration · N:N care connections
-(request, invite, accept, reject, disconnect) · doctor–patient messaging with unread
-counts · time zone and 12/24h preferences · an audit log of every read and write against
-a patient record · a one-button demo reset.
-
----
-
-## The intended workflow
-
-**Patient.** Check in (1 minute) → results arrive → ask the agent in plain language →
-add the questions it suggests to the appointment list → an approved summary lands in the
-inbox → export it as a PDF for the visit.
-
-**Clinician.** Open the roster → see who needs review → read the record → **Ask** the
-agent about this patient → turn the answer into a summary draft → edit it → approve.
-Only then does the patient see it.
-
-**The clinician gate is the product's central claim.** A summary's `body` is withheld
-from the patient until `status = 'approved'`; the patient sees "your clinician is
-reviewing this", never the drafting churn, then the approved text with the approver's
-name on it. The doctor can edit (every version kept) or request changes, which sends it
-back to the drafter rather than to the patient.
+| `sofia@demo.health` | Patient with a year of results and 30 days of wearable data |
+| `mikael@demo.health` | Patient with an empty account, to show onboarding |
+| `eriksson@demo.health` | Doctor connected to both patients |
+| `moreau@demo.health` | Doctor with a pending request from Sofia |
 
 ### Demo script
 
 1. Sign in as **Sofia** (`sofia@demo.health`), log a check-in, ask the agent
-   *"Explain my blood sugar results"*, and add one of its suggested questions.
+   *"Explain my blood sugar results"*, and add one suggested question.
 2. Sign in as **Dr. Eriksson** (`eriksson@demo.health`) and open Sofia's record — the
    check-in is already there.
-3. Use **Ask** → "Draft patient summary" → edit it → approve.
-4. Back as Sofia: the summary is in the inbox, readable and exportable.
+3. Use **Ask** → **Draft patient summary** → edit it → approve it.
+4. Back as Sofia: the approved summary is in the inbox, readable and exportable.
 5. Book an appointment from Sofia's month calendar against the doctor's published times.
 6. Press **Reset demo** on the landing page to put everything back.
 
+### Recorded fallback
+
+📹 **Recorded demo videos:** `https://share.icloud.com/photos/0c2gKWgKtMoX0W6jEAM2Co9KA`
+`https://share.icloud.com/photos/045KdyHWVupeyI_v7iWq8mULQ`
+
+The product is designed to run without provider keys for demos. If Nebius, Amass or
+ElevenLabs are unavailable, the app falls back to scripted grounded answers, stored
+research evidence and browser speech synthesis where possible.
+
 ---
 
-## Architecture
+## Features
+
+| | Feature | Description |
+|---|---|---|
+| 🧑‍⚕️ | **Two-role product** | Separate patient and clinician experiences backed by the same PostgreSQL record |
+| 🧠 | **Health Agent chat** | Patient-specific answers using labs, wearables, genetics, check-ins, documents and research |
+| 🔎 | **Clinician Ask tab** | Risk signals, confidence, citations, follow-up questions and a one-click patient draft |
+| ✅ | **Clinician review gate** | Summary drafts stay hidden until a clinician approves them |
+| 📈 | **Health trends** | Lab history, wearable charts, sparklines, reference ranges and event markers |
+| 📄 | **File import** | Upload reports, extract text, parse biomarkers and let a clinician confirm before writing |
+| 🎙️ | **Voice support** | ElevenLabs transcription and speech, with browser speech fallback |
+| 💬 | **Care messaging** | Doctor-patient threads, unread counts and appointment-prep questions |
+| 📅 | **Scheduling** | Doctor availability templates, generated slots, booking, cancellation and rescheduling |
+| 🧾 | **Exports** | Approved summary as PDF and recent results as CSV |
+| 🧯 | **Safety controls** | Urgent-symptom banners, medication boundaries, schema validation and fallback mode |
+| 🔐 | **Access control** | Sessions, invite-only clinician registration, accepted care connections and audit logs |
+
+---
+
+## Technical Architecture and Tools Used
 
 ```txt
 ┌─────────────────────────────┐   ┌──────────────────────────────┐
 │  /patient  (phone-sized)    │   │  /clinician  (desktop)       │
 │  Next.js 16 App Router      │   │  same design tokens          │
-│  React 19 · SWR · Tailwind  │   │  shadcn/ui                   │
+│  React 19 · SWR · Tailwind  │   │  shadcn/ui · Radix           │
 └──────────────┬──────────────┘   └───────────────┬──────────────┘
-               │  lib/patient-api  ·  lib/care-api (typed HTTP, cookies)
+               │  lib/patient-api  ·  lib/care-api
                └──────────────┬───────────────────┘
                               ▼
               ┌────────────────────────────────────┐
@@ -172,118 +165,167 @@ back to the drafter rather than to the patient.
               └───┬──────────────┬─────────────┬───┘
                   │              │             │
                   ▼              ▼             ▼
-            PostgreSQL      health_agent   ElevenLabs
-         (22 tables, the    ├─ amass.py    (STT / TTS,
-          single source     └─ nebius.py    cached in
-          of truth)          + contracts    the files table)
+            PostgreSQL      Health Agent   ElevenLabs
+         (single source     ├─ Amass       (STT / TTS,
+          of truth)         ├─ Nebius       cached audio)
+                            └─ Pydantic
 ```
 
-**The frontend never calls Nebius, Amass or the database directly.** It calls the API,
-and the backend decides whether an answer comes from the model, from retrieval or from
-the scripted fallback. Provider keys are server-side only and are never prefixed
-`NEXT_PUBLIC_`.
+**The frontend never calls Nebius, Amass, ElevenLabs or the database directly.** It calls
+the FastAPI backend, and the backend decides whether an answer comes from the model, from
+retrieved evidence or from the scripted fallback. Provider keys are server-side only and
+are never prefixed `NEXT_PUBLIC_`.
 
-### Frontend
+### Tech stack
 
-- **Next.js 16 App Router**, run through [vinext](https://www.npmjs.com/package/vinext)
-  (Vite-based). `output: "standalone"` emits `dist/standalone/server.js`, a plain Node
-  server, which is what the container runs.
-- **React 19** with the React compiler lint rules — components are kept pure, and
-  client-only work is gated behind `useSyncExternalStore`.
-- **SWR** for every fetch, so a check-in written on one screen shows up on the next.
-- **Tailwind v4** with `@theme inline`. Every colour, radius, shadow and the font are CSS
-  variables in [app/theme.css](app/theme.css); the shadcn/ui names (`--primary`,
-  `--card`, …) point at the same tokens as the patient screens. **To restyle the whole
-  product, change that one file.**
-- **shadcn/ui + Radix + lucide-react** for the clinician surface. Only the five
-  components the app actually uses are checked in (`badge`, `button`, `input`, `tabs`,
-  `textarea`); `components.json` is still configured, so add more with
-  `npx shadcn@latest add <name>`. The charts are hand-written SVG, not a chart library.
+```text
+Frontend      →  Next.js 16 · React 19 · TypeScript · SWR · Tailwind v4
+UI            →  shadcn/ui · Radix UI · lucide-react · hand-written SVG charts
+Backend       →  Python · FastAPI · Pydantic · Uvicorn
+Database      →  PostgreSQL · psycopg
+AI inference  →  Nebius AI Cloud, OpenAI-compatible chat completions
+Evidence      →  Amass BiomedCore, with local research-source fallback
+Voice         →  ElevenLabs STT/TTS, with browser speech fallback
+Files         →  pypdf for uploaded report text extraction
+Deployment    →  Nebius Compute · Nebius Managed PostgreSQL · Docker Compose · Caddy · Nebius Tunnel
+```
 
-### Backend
+### Health Agent pipeline
+
+```txt
+patient context  →  Amass retrieval  →  Nebius synthesis  →  schema validation  →  safety gate  →  UI
+   labs, trends       public topic         JSON answer         pydantic contract     red flags
+   genetics,          strings only         + citation ids      backend/contracts     medication
+   check-ins,                                                                        boundary
+   uploaded docs
+```
+
+- **It knows the patient.** Labs with history, wearable trends, check-ins, genetics and
+  extracted document text are assembled into the prompt by `backend/prompts.py`.
+- **Citations cannot be invented.** The model selects citation IDs from retrieved
+  evidence. URLs and titles are attached by the backend from the retrieval record.
+- **It fails safely.** Invalid model output, unsafe text or provider failure triggers a
+  scripted grounded fallback answer.
+- **Urgent symptoms short-circuit everything.** Chest pain, stroke signs, confusion with
+  fever and similar red flags return an escalation banner before model generation.
+- **Privacy is structural.** Patient-grounded research queries send fixed public topic
+  strings, not names, lab values, diary text or dates.
+
+### Backend modules
 
 | Module | Responsibility |
 |---|---|
-| [`api.py`](backend/api.py) | Every HTTP route; access checks and audit live at the edge |
-| [`auth.py`](backend/auth.py) | Registration, scrypt password hashing, HttpOnly session cookies, invite codes |
-| [`health_agent.py`](backend/health_agent.py) | The orchestrator: context → retrieval → model → validation → safety |
-| [`amass.py`](backend/amass.py) | Evidence retrieval; public topic strings only, with a local fallback |
-| [`nebius.py`](backend/nebius.py) | OpenAI-compatible inference client; retries owned by the orchestrator |
-| [`contracts.py`](backend/contracts.py) | Pydantic models the generated JSON must validate against |
-| [`agent.py`](backend/agent.py) | The scripted, grounded answers used as the fallback for both audiences |
-| [`retrieval.py`](backend/retrieval.py) | Reading and writing patient data in the shapes the frontend expects |
-| [`documents.py`](backend/documents.py) | PDF text extraction and biomarker / gene parsing |
-| [`summaries.py`](backend/summaries.py) | Draft, edit, version trail, request changes, approve |
-| [`care.py`](backend/care.py) / [`schedule.py`](backend/schedule.py) | Connections and messaging / availability and appointments |
-| [`voice.py`](backend/voice.py) | ElevenLabs STT and TTS, with generated audio cached per patient |
-| [`exports.py`](backend/exports.py) / [`audit.py`](backend/audit.py) / [`demo_reset.py`](backend/demo_reset.py) | PDF and CSV export · who did what · putting the demo back |
+| `backend/api.py` | HTTP routes, access checks and audit logging |
+| `backend/auth.py` | Registration, scrypt password hashing, HttpOnly sessions and invite codes |
+| `backend/health_agent.py` | Context → retrieval → model → validation → safety |
+| `backend/amass.py` | Evidence retrieval and local fallback |
+| `backend/nebius.py` | OpenAI-compatible inference client |
+| `backend/contracts.py` | Pydantic contracts for generated JSON |
+| `backend/agent.py` | Scripted grounded fallback answers |
+| `backend/retrieval.py` | Patient-data reads and writes |
+| `backend/documents.py` | PDF extraction and biomarker / gene parsing |
+| `backend/summaries.py` | Draft, edit, version trail, request changes and approval |
+| `backend/care.py` / `backend/schedule.py` | Connections, messages, availability and appointments |
+| `backend/voice.py` | ElevenLabs STT/TTS and cached generated audio |
+| `backend/exports.py` / `backend/audit.py` / `backend/demo_reset.py` | Exports, audit trail and demo reset |
 
-### Data
+---
 
-One PostgreSQL database, 22 tables, created by [scripts/setup_database.py](scripts/setup_database.py):
-accounts and sessions · patients and clinicians · care connections and messages · lab
-panels, labs, wearables, genetics, diary entries · summaries with a version trail and
-sources · availability rules, slots and appointments · files · research sources · audit log.
+## Data Sources, Licences and Evidence
 
-The demo patient is generated, not hand-written into the database:
+The demo uses **fictional patient data** generated from `lib/demo/data.ts` and exported
+to `data/patient_demo.json`. It includes Sofia Lind's lab history, 30 days of wearable
+data, check-ins, genetics, summaries, appointment questions and research-source records.
 
 ```txt
-lib/demo/data.ts          the story: labs with a year of history (fasting glucose
-      │                   94 → 101 → 108 mg/dL, hs-CRP 3.1, vitamin D 24), 30 days of
-      │                   wearable data, check-ins, genetics, summaries, research
+lib/demo/data.ts          generated patient story and research fixtures
       │  npm run export:demo
       ▼
-data/patient_demo.json    handover file, regenerate any time (dates stay relative to today)
+data/patient_demo.json    committed handover file, dates refreshed at export time
       │  python3 scripts/ingest_patient.py
       ▼
-PostgreSQL                one source of truth for both views
+PostgreSQL                one source of truth for both patient and clinician views
 ```
 
-Both views show **Sofia Lind** (46, fatigue and poor recovery, Dr. Eriksson), and the
-numbers agree everywhere because they come from one place.
+Evidence comes from two places:
 
----
-
-## Connected services
-
-| Service | Used for | Without it |
+| Source | Used for | Licence / access note |
 |---|---|---|
-| **Nebius AI Cloud** (inference) | Synthesising agent answers, clinician analysis and summary drafts, via an OpenAI-compatible endpoint | Falls back to the scripted grounded answer; the response is labelled as a fallback |
-| **Amass BiomedCore** | Retrieving the studies an answer cites | Falls back to the `research_sources` table, which holds the papers the demo cites with DOIs |
-| **ElevenLabs** | Speech-to-text (`scribe_v2`) and text-to-speech (`eleven_multilingual_v2`) | Recording is unavailable; playback falls back to browser speech synthesis |
-| **Nebius Managed PostgreSQL** | The database in production, over the private network with `sslmode=verify-full` | — (required) |
-| **Nebius Compute + Tunnels** | The VM running the containers, and a public HTTPS URL with no domain or public IP needed | — |
+| Fictional demo records | Patient profile, labs, wearables, check-ins, genetics, files and summaries | Created for this prototype; not real patient data |
+| Amass BiomedCore | Live biomedical evidence retrieval when configured | Requires provider access/API credentials |
+| `research_sources` table | Local evidence fallback for the demo | Stores titles, details and DOI links for real papers used as cited references |
+| Uploaded files | User-provided reports, PDFs, CSVs and text files | Remain user-provided content; clinicians confirm parsed values before they enter the record |
+| Third-party libraries | UI, backend, build tooling and parsing | Governed by their upstream package licences; the repository itself currently has no top-level `LICENSE` file |
 
-**Every provider is optional.** Each one missing degrades a feature rather than breaking
-the app, which is what makes the demo safe to run on a laptop with no keys at all.
-
-Check what is actually configured and reachable:
-
-```bash
-python3 scripts/check_providers.py --live
-```
+The checked demo evidence includes DOI-linked research on sleep and metabolic function,
+diabetes prevention, hs-CRP and cardiovascular risk, vitamin D deficiency, TCF7L2 risk
+and APOE interpretation. The model is not allowed to invent DOI or URL strings; generated
+text containing a new URL or DOI is rejected.
 
 ---
 
-## Setup
+## Results and Success Metrics
 
-You need **Node 22.13+**, **Python 3.10+** and a **PostgreSQL** you can reach.
+This prototype is successful if it makes a patient-clinician conversation faster,
+clearer and safer without pretending to be a medical device.
+
+| Metric | Current result |
+|---|---|
+| Patient context coverage | One seeded patient includes year-long labs, 30 wearable days, check-ins, genetics, appointment questions, summaries and research evidence |
+| Clinician review safety | Patient-facing summary bodies are hidden until `status = approved` |
+| Grounding | Citations are attached from retrieved evidence records, not generated free-text links |
+| Fallback behavior | Missing Nebius, Amass or ElevenLabs configuration degrades features instead of breaking the app |
+| Safety tests | `pytest tests/` covers agent grounding, fallback and safety behavior |
+| Frontend checks | `npm run lint`, `npx tsc --noEmit`, `npm run build` and chart zoom checks are documented |
+| Demo reset | `/demo/reset` and the landing-page reset button restore demo state for repeat presentations |
+
+Suggested next measurements:
+
+- Time for a patient to understand a lab result and save a visit question.
+- Time for a clinician to review a patient record and approve a summary.
+- Percentage of answers with at least one valid source.
+- Percentage of model generations that fall back because of invalid or unsafe output.
+- Clinician edits per generated summary, as a quality signal.
+
+---
+
+## Limitations, Risks and Safety Considerations
+
+> Prototype with fictional patients. Not medical advice, not a medical device, and not
+> for real patient data.
+
+| Area | Limitation or risk | Mitigation in this prototype |
+|---|---|---|
+| Medical advice | The app must not diagnose, prescribe or recommend dosing | Medication and diagnosis boundaries route to fallback; every answer carries a clinician-review note |
+| Urgent symptoms | A patient might describe red-flag symptoms in chat or check-ins | Client and server both check fixed urgent-symptom patterns and show escalation guidance |
+| Hallucinated evidence | A model could invent citations, URLs or DOIs | The backend rejects generated URLs/DOIs and only attaches source links from retrieved records |
+| Privacy | Patient data should not be sent to search providers | Patient-grounded evidence queries use fixed public topic strings only |
+| AI reliability | Model output can fail validation or provider calls can fail | Pydantic validation, one repair attempt, timeout handling and scripted fallback |
+| Demo credentials | Demo passwords and invite code are public | Intended only for hackathon demo; change passwords and set `DEMO_RESET=0` before any real deployment |
+| Real-world clinical use | The system has not been clinically validated | Keep it as decision support, require clinician approval, and do not use with real patient records |
+| Uploaded documents | Parsed values may be wrong or incomplete | Clinician confirms parsed biomarkers and gene results before anything joins the record |
+
+---
+
+## Getting Started
+
+You need **Node 22.13+**, **Python 3.10+** and a reachable **PostgreSQL** instance.
 
 ```bash
-# 1. frontend dependencies
+# Frontend dependencies
 npm install
 
-# 2. backend dependencies
+# Backend dependencies
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# 3. database: schema, demo patient, demo accounts
+# Database, demo patient and demo accounts
 python3 scripts/setup_database.py
 npm run export:demo
 python3 scripts/ingest_patient.py
 python3 scripts/seed_accounts.py
 
-# 4. run the API (leave it running)
+# API server
 uvicorn backend.api:app --reload --port 8000
 ```
 
@@ -293,36 +335,28 @@ In a second terminal:
 npm run dev
 ```
 
-Open http://localhost:5173 and sign in. Every demo account uses the password
-`demo1234`; the landing page lists them.
+Then open:
 
-| Account | Who |
-|---|---|
-| `sofia@demo.health` | Patient with a year of results and 30 days of wearable data |
-| `mikael@demo.health` | Patient with an empty account, to show onboarding |
-| `eriksson@demo.health` | Doctor connected to both patients |
-| `moreau@demo.health` | Doctor with a pending request from Sofia |
-
-Creating a doctor account needs an invite code: `LONGEVITY-2026`.
+- Frontend: `http://localhost:5173`
+- Backend API: `http://localhost:8000/api/v1`
+- FastAPI docs: `http://localhost:8000/docs`
 
 ### Configuration
 
-The frontend needs no configuration by default. To point it at a backend that is not on
-`localhost:8000`, create `.env.local`:
+The frontend needs no configuration by default. To point it at another backend, create
+`.env.local`:
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=https://api.example.com/api/v1
 ```
 
-Database settings are **environment variables in the shell that runs Python**. Without
-them the scripts use `postgres@localhost:5432/health_agent` and ask for the password:
+Database settings are environment variables in the shell that runs Python:
 
 ```bash
 export DATABASE_URL=postgresql://postgres:secret@localhost:5432/health_agent
 ```
 
-Provider keys may either be exported in that Python shell or saved in ignored
-`.env.local` for local development. They are **server-side only**:
+Provider keys are optional and server-side only:
 
 ```bash
 NEBIUS_API_KEY=...          # inference
@@ -334,17 +368,15 @@ ELEVENLABS_API_KEY=...      # voice
 ELEVENLABS_VOICE_ID=...     # optional voice override
 ```
 
-Other useful variables: `ALLOWED_ORIGINS` (browser origins allowed to call the API),
-`SECURE_COOKIES=1` when serving over HTTPS, `DEMO_RESET=0` to disable the reset button.
-See [.env.example](.env.example) and [docs/DATABASE.md](docs/DATABASE.md).
+Other useful variables: `ALLOWED_ORIGINS`, `SECURE_COOKIES=1` and `DEMO_RESET=0`.
+See `.env.example` and `docs/DATABASE.md`.
 
 ---
 
 ## Deployment
 
-The whole product runs on **Nebius AI Cloud**: Managed PostgreSQL, one Compute VM running
-frontend + backend + Caddy under Docker Compose, and a **Nebius Tunnel** for a public
-HTTPS URL — no domain and no public IP required.
+The deployment target is **Nebius AI Cloud**: Managed PostgreSQL, one Compute VM running
+frontend + backend + Caddy under Docker Compose, and a Nebius Tunnel for public HTTPS.
 
 ```bash
 # on the VM, after cloning and filling in deploy/.env
@@ -352,29 +384,19 @@ cd deploy && docker compose up -d --build
 ./seed.sh
 ```
 
-[docs/DEPLOY.md](docs/DEPLOY.md) is the full runbook: creating the cluster, the CA
-certificate that `sslmode=verify-full` needs, the VM, the tunnel and its IAM group, and
-an **"Updating a running deployment"** section with a per-change command table, log
-commands and rollback.
-
-Two things that are easy to get wrong and are handled in [deploy/](deploy/):
-
-- The standalone Next.js bundle is **not** self-contained — production dependencies are
-  installed beside it in the runner stage, or the container crash-loops on
-  `Cannot find package 'react'`.
-- Uploads are written to disk, so they live on a **named volume**; without it every
-  `docker compose up --build` silently discards them.
+`docs/DEPLOY.md` is the full runbook: database setup, CA certificate,
+`sslmode=verify-full`, VM setup, tunnel setup, logs and rollback.
 
 ---
 
 ## Checks
 
 ```bash
-npm run lint                       # ESLint, incl. the guard against next/link
-npx tsc --noEmit                   # types
+npm run lint                       # ESLint, including project-specific guards
+npx tsc --noEmit                   # TypeScript
 npm run build                      # production build
 npx tsx scripts/check_chart_zoom.ts # chart zoom/pan maths
-pytest tests/                      # agent safety, grounding and fallback behaviour
+pytest tests/                      # agent safety, grounding and fallback behavior
 ```
 
 `pytest` needs `pip install -r backend/requirements-dev.txt` and a reachable
@@ -382,19 +404,19 @@ pytest tests/                      # agent safety, grounding and fallback behavi
 
 ---
 
-## Project layout
+## Project Layout
 
 ```txt
-app/patient/          patient routes (home, chat, log, health, care, inbox, profile)
-app/clinician/        clinician routes (roster, record, inbox, calendar, profile)
+app/patient/          patient routes: home, chat, log, health, care, inbox, profile
+app/clinician/        clinician routes: roster, record, inbox, calendar, profile
 app/login, /register  accounts
 app/theme.css         design tokens for both views
 components/ui/        shadcn/ui components
 components/patient/   patient components and charts
 components/clinician/ roster, patient record, Ask and research chat
-components/files/     upload, download and the parsed-value importer
+components/files/     upload, download and parsed-value importer
 components/calendar/  week and month grids
-lib/demo/             the demo patient, exported to the database
+lib/demo/             demo patient source data
 lib/patient-api/      patient app contract and HTTP client
 lib/care-api.ts       connections, messages, calendar, profiles
 backend/              FastAPI app, auth, agent, retrieval, care, schedule, voice
@@ -408,22 +430,42 @@ tests/                agent safety and grounding tests
 
 | Topic | Where |
 |---|---|
-| Patient app contract | [lib/patient-api/types.ts](lib/patient-api/types.ts), documented in [docs/PATIENT_API.md](docs/PATIENT_API.md) |
-| Accounts, connections, calendar, messaging | [docs/ACCOUNTS.md](docs/ACCOUNTS.md) |
-| Database and scripts | [docs/DATABASE.md](docs/DATABASE.md) |
-| How the Health Agent works | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
-| Voice: transcription, speech and caching | [docs/VOICE.md](docs/VOICE.md) |
-| Hosting and redeploying on Nebius | [docs/DEPLOY.md](docs/DEPLOY.md) |
-| Team split and contracts | [TEAM_CONTRACT.md](TEAM_CONTRACT.md) |
+| Patient app contract | `lib/patient-api/types.ts`, documented in `docs/PATIENT_API.md` |
+| Accounts, connections, calendar, messaging | `docs/ACCOUNTS.md` |
+| Database and scripts | `docs/DATABASE.md` |
+| How the Health Agent works | `docs/HEALTH_AGENT.md` |
+| Voice: transcription, speech and caching | `docs/VOICE.md` |
+| Hosting and redeploying on Nebius | `docs/DEPLOY.md` |
+| Team split and contracts | `TEAM_CONTRACT.md` |
 
 ---
 
-## What this is not
+## Team Members and Next Steps
 
-Fictional patients, a prototype, and **not a medical device**. No diagnosis, no
-prescribing, no dosing — the agent refuses medication questions by design and every
-answer carries a clinician-review note.
+**Team members**
 
-The demo passwords (`demo1234`) and invite codes are public knowledge, and `/demo/reset`
-is intentionally unauthenticated so anyone presenting can reset the state. **Change the
-first and set `DEMO_RESET=0` before this is anywhere a real record could exist.**
+Borna Oršulić · Jonas Neumann · Kristijan Sagovac · Erjon Sejdiu
+
+**Next steps**
+
+- Replace the recorded-demo placeholder with the final 2-3 minute video link.
+- Surface the `generation` field in the UI so users can see whether an answer came from
+  Nebius, fallback mode or safety mode.
+- Add real authentication hardening for production: non-demo passwords, disabled demo
+  reset, stricter invite-code handling and deployment secrets rotation.
+- Expand document parsing beyond the current PDF-focused flow and add validation against
+  more report formats.
+- Add clinician analytics for edit distance, fallback rate, source coverage and time to
+  approved summary.
+- Run user testing with patients and clinicians before considering any real-world health
+  workflow.
+
+---
+
+<div align="center">
+
+Built for the **AI Longevity Hackathon** · 2026
+
+*Theme: evidence-grounded longevity care with clinicians in the loop*
+
+</div>
