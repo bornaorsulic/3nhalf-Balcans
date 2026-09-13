@@ -118,8 +118,8 @@ Then sign in with any demo account. Every demo account uses the password `demo12
 
 ### Recorded fallback
 
-📹 **Recorded demo videos:** `https://share.icloud.com/photos/0c2gKWgKtMoX0W6jEAM2Co9KA`
-`https://share.icloud.com/photos/045KdyHWVupeyI_v7iWq8mULQ`
+📹 **Recorded demo videos:** `https://drive.google.com/file/d/1T1gjyjuBCHAWaM_bktAlqV90qK3W0UyQ/view?usp=share_link`
+`https://drive.google.com/file/d/1IIehtRS5v0yXlSEW3J-Cedmyz4GVtR2_/view?usp=share_link`
 
 The product is designed to run without provider keys for demos. If Nebius, Amass or
 ElevenLabs are unavailable, the app falls back to scripted grounded answers, stored
