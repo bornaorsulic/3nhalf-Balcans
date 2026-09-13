@@ -30,13 +30,14 @@ absolute URL is a rebuild, not a restart.
 
 ## Before you start
 
-- A Nebius project in a region with Managed PostgreSQL — `eu-north1` works. It is not
-  available in `eu-north2`, `us-north1` or `uk-south2`.
-- The CLI:
+- A Nebius project in a region with Managed PostgreSQL — `eu-west1` (where this is
+  deployed) and `eu-north1` both work. It is **not** available in `eu-north2`,
+  `us-north1` or `uk-south2`.
+- The CLI, only needed for the tunnel in step 5 — steps 1 to 4 are all console and SSH:
 
   ```bash
   curl -sSL https://storage.eu-north1.nebius.cloud/cli/install.sh | bash
-  nebius init
+  nebius profile create   # not `nebius init`: browser login, then pick tenant and project
   ```
 
 ## 1. Managed PostgreSQL

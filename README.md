@@ -179,8 +179,9 @@ back to the drafter rather than to the patient.
 ```
 
 **The frontend never calls Nebius, Amass or the database directly.** It calls the API,
-and the backend decides what is real and what is still a stand-in. Provider keys are
-server-side only and are never prefixed `NEXT_PUBLIC_`.
+and the backend decides whether an answer comes from the model, from retrieval or from
+the scripted fallback. Provider keys are server-side only and are never prefixed
+`NEXT_PUBLIC_`.
 
 ### Frontend
 
@@ -407,7 +408,8 @@ tests/                agent safety and grounding tests
 | Patient app contract | [lib/patient-api/types.ts](lib/patient-api/types.ts), documented in [docs/PATIENT_API.md](docs/PATIENT_API.md) |
 | Accounts, connections, calendar, messaging | [docs/ACCOUNTS.md](docs/ACCOUNTS.md) |
 | Database and scripts | [docs/DATABASE.md](docs/DATABASE.md) |
-| Health Agent design | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
+| How the Health Agent works | [docs/HEALTH_AGENT.md](docs/HEALTH_AGENT.md) |
+| Voice: transcription, speech and caching | [docs/VOICE.md](docs/VOICE.md) |
 | Hosting and redeploying on Nebius | [docs/DEPLOY.md](docs/DEPLOY.md) |
 | Team split and contracts | [TEAM_CONTRACT.md](TEAM_CONTRACT.md) |
 

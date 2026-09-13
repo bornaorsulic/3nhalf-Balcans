@@ -77,7 +77,7 @@ Two file formats are supported by the ingest script:
 | `summaries` | Patient-facing summaries with status `in_review` / `approved` and the approval trail. |
 | `summary_sources` | The sources behind each summary (patient data, research, clinician). |
 | `appointment_questions` | Questions for the next visit, with who added them. |
-| `research_sources` | Research evidence (Amass stand-in) with DOI links. |
+| `research_sources` | Research evidence with DOI links; the fallback when Amass is unreachable. |
 | `files` | Uploaded patient files, voice notes, and cached generated speech. Upload metadata points to the backend upload directory; voice/TTS rows store private audio bytes. |
 | `users` | Accounts: email, password hash, role, and the patient or clinician they are. |
 | `sessions` | Signed-in sessions (the cookie's token). |

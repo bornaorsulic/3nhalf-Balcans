@@ -1,75 +1,183 @@
-# Health Agent backend (Person 1)
+# The Health Agent
 
-Build the first working Health Agent: take patient data, retrieve relevant context,
-ask Amass for research evidence, send everything to a Nebius-hosted model, and
-return structured JSON to the frontend.
+How an answer is produced: patient context from PostgreSQL, evidence from Amass,
+synthesis by a Nebius-hosted model, and a validation and safety layer that decides
+whether the model's output is allowed to reach anyone.
 
-The agent must **not diagnose or prescribe**. It produces risk signals, prevention
-suggestions, follow-up questions, cited evidence, patient-friendly explanations, and
-clinician review warnings.
+The agent **does not diagnose or prescribe**. It produces observations, risk signals,
+prevention suggestions, follow-up questions, cited evidence and patient-friendly
+explanations — all of them marked for clinician review.
 
-## Architecture
+> Planning this component? The build plan is in the git history. This page describes
+> what exists.
+
+## The pipeline
 
 ```txt
-Clinician UI ──▶ FastAPI  (backend/api.py)
-                      │
-                      ▼
-              Python Health Agent  (backend/)
-                      │
-       ┌──────────────┼──────────────┐
-       ▼              ▼              ▼
- patient context   Amass         Nebius LLM
- (PostgreSQL)      research      reasoning
-                      │
-                      ▼
-            validated structured JSON
+                       ┌──────────────────────────────────────────┐
+  question ───────────▶│  health_agent.answer()                   │
+  (clinician or        │                                          │
+   patient)            │  1. load patient context   retrieval.py  │
+                       │  2. red-flag triage        agent.py      │
+                       │  3. medication boundary    regex         │
+                       │  4. retrieve evidence      amass.py      │
+                       │  5. build prompt           prompts.py    │
+                       │  6. generate               nebius.py     │
+                       │  7. validate               contracts.py  │
+                       │  8. safety-scan output     regex         │
+                       │  9. server-owned fields    (ids, urls)   │
+                       └────────────────────┬─────────────────────┘
+                                            ▼
+                              validated JSON the UI renders
 ```
 
-**Why the agent lives in Python:** [`backend/retrieval.py`](../backend/retrieval.py)
-already assembles the full patient context from PostgreSQL,
-[`backend/agent.py`](../backend/agent.py) already encodes the safety rules and the reply
-shape, and FastAPI gives request validation for free. The frontend calls the same API it
-already uses, so keys never reach the browser.
+Steps 2, 3, 7 and 8 can each stop the model's output from being used. When any of them
+does, a **scripted grounded answer** takes its place and the response says so.
 
-## Files
+### 1. Patient context
 
-| File | Status | Purpose |
-|---|---|---|
-| `backend/nebius.py` | create | Nebius client: chat completion, JSON output, timeout, one retry |
-| `backend/amass.py` | create | Amass search; falls back to the `research_sources` table |
-| `backend/prompts.py` | create | System prompt and context builder |
-| `backend/health_agent.py` | create | Orchestrator: context → evidence → prompt → validate → return |
-| [`backend/agent.py`](../backend/agent.py) | keep | Scripted fallback when the model fails (patient mode) |
-| [`backend/clinician_agent.py`](../backend/clinician_agent.py) | replace `answer()` | Scripted clinician answer; already returns the shape below |
-| [`backend/api.py`](../backend/api.py) | done | `POST /api/v1/clinician/chat` exists, with the connection check |
-| `lib/care-api.ts` | done | `askAgent()` / `createSummary()` |
-| `components/clinician/agent-chat.tsx` | done | The Ask tab that renders this shape |
+`retrieval.get_patient_context(patient_id)` returns the profile, labs with a year of
+history, wearable trends, check-ins, genetics, summaries, appointment questions and the
+extracted text of uploaded documents. `prompts.py` turns it into a compact block with
+patient data and research evidence clearly separated and labelled.
 
-## The endpoint
+### 2. Red-flag triage — before anything else
 
-`POST /api/v1/clinician/chat` **already exists** and is wired to the Ask tab. It is
-gated on `current_clinician` plus an accepted `care_connections` row, and it logs an
-`asked_agent` entry to the audit trail. What is scripted is only the composer:
-`backend/clinician_agent.py:answer()`. Replace that, keep the response shape, and the
-UI needs no change.
+`agent.check_urgent()` runs against the question **and** against any check-in written in
+the last 24 hours. Chest pain, stroke signs, confusion with fever and the rest of the
+fixed list short-circuit the whole pipeline: the response carries the escalation message
+and nothing else, with `generation.reason = "urgent_symptoms"`.
 
-**Input**
+The list lives in [`lib/safety.ts`](../lib/safety.ts) and is mirrored in
+[`backend/agent.py`](../backend/agent.py). Both sides check — the client so the banner
+appears instantly, the server so an API caller cannot skip it. **Neither relies on the
+model noticing.**
+
+### 3. The medication boundary
+
+A question matching `dose | dosage | prescribe | prescription | medication | metformin |
+statin | supplement | should I take` never reaches the model. It is answered from the
+scripted path with a line saying that medication and supplement choices, including
+doses, require a clinician.
+
+### 4. Evidence retrieval
+
+`amass.search()` queries Amass BiomedCore, falling back to the `research_sources` table.
+`EvidenceResult.origin` records which one answered, and that reaches the response.
+
+**What leaves the server is constrained by design.** For a patient-grounded question,
+`research_query()` maps the question to **fixed public topic strings** — "glycemic risk
+lifestyle prevention", "heart rate variability sleep recovery". Names, values, dates and
+diary text are never sent to the search provider. The research chat may use the doctor's
+own wording, but `public_research_query()` first strips emails, capitalised name
+patterns and long digit runs, then truncates to 180 characters.
+
+### 5–6. Prompt and generation
+
+`nebius.py` posts to an OpenAI-compatible `/chat/completions` at `temperature 0.1`.
+
+It deliberately does **not** use `response_format`. Small self-hosted models tend to echo
+a JSON schema back instead of producing an instance of it, so the model-facing contract
+is a compact hand-written shape (`output_contract()`), and `extract_json_object()` strips
+`<think>` blocks and pulls the first complete JSON object out of whatever comes back.
+Strict validation is pydantic's job afterwards, not the model's.
+
+Other guards in the client: HTTP status mapped to retryable vs. not, a 256 KB response
+cap, a wall-clock deadline enforced while streaming, and `finish_reason != "stop"` or a
+refusal treated as failure.
+
+### 7. Validation, with one repair attempt
+
+The response must validate against a pydantic model in
+[`backend/contracts.py`](../backend/contracts.py) — `ModelAnswer`, `ModelDraft` or
+`ModelResearchAnswer`.
+
+On failure the orchestrator retries **once**, appending only the error *locations and
+types* to the prompt — never the rejected text, which may contain patient data. The
+whole thing runs under **one shared wall-clock budget** covering both attempts, so a
+transport timeout cannot silently double how long the browser waits. At most two
+provider requests are made per question, ever.
+
+### 8. The output safety scan
+
+The serialised output is scanned, and rejected if it contains:
+
+- any URL or DOI — models invent plausible-looking ones
+- a dosing instruction (`take/start/increase … 500 mg`)
+- a diagnosis (`you have diabetes`, `the patient has prediabetes`)
+- a medication directive (`start taking metformin`)
+
+A rejection gets one regeneration attempt with a corrective instruction, then falls back.
+
+This is a **conservative supplementary check, not a semantic clinical verifier** — it
+catches the failure modes that are cheap to pattern-match, and the clinician gate covers
+the rest.
+
+### 9. Server-owned fields
+
+The model never controls identity or provenance:
+
+| Field | Who sets it |
+|---|---|
+| `id`, `generatedAt` | server |
+| `citations[].url`, `.title` | server, from the retrieval record |
+| `riskSignals[].id` | server, renumbered `risk-1…n` |
+| `safetyNote` | server, fixed text |
+| `confidence` | model, but **forced to `low`** when there are no citations |
+
+**Citations cannot be invented.** The model selects citation **ids** from
+`RETRIEVED_EVIDENCE`; `cited_sources()` keeps only ids that were actually retrieved and
+attaches the canonical title and URL from the retrieval record. If the model cited
+nothing but evidence was retrieved, the response carries those sources labelled
+*"Retrieved for clinician review; not cited by the generated synthesis"* — which is an
+honest statement that retrieval ran, not a claim that the text used it.
+
+## Transparency: the `generation` field
+
+Every agent response carries:
 
 ```json
-{ "patientId": "demo", "question": "What are the biggest preventable risks for this patient?" }
+"generation": { "mode": "nebius", "evidence": "amass", "reason": null }
 ```
 
-**Output** — field names match [`lib/types.ts`](../lib/types.ts), so the existing
-clinician UI renders it without changes:
+- `mode` — `nebius`, `fallback`, or `safety`
+- `evidence` — which retrieval source answered, or `none`
+- `reason` — why the fallback ran: `nebius_not_configured`, `invalid_model_output`,
+  `unsafe_model_output`, `nebius_unavailable`, `nebius_http_429`, `medication_boundary`,
+  `urgent_symptoms`
+
+In fallback mode the answer text itself also ends with *"AI synthesis is unavailable;
+this is a limited summary of recorded data."*, so a reader is never misled about what
+produced it.
+
+**The field is in the API response but is not yet rendered anywhere.** Surfacing it —
+a small "answered from records, not the model" marker — is the obvious next step.
+
+## Endpoints
+
+| Route | Who | Purpose |
+|---|---|---|
+| `POST /api/v1/patients/{id}/chat` | patient (self) | Plain-language answer, `AgentReply` shape |
+| `POST /api/v1/clinician/chat` | clinician, accepted connection | Analysis with risk signals and a patient draft |
+| `POST /api/v1/clinician/research-chat` | any clinician | General study questions, no patient context |
+| `POST /api/v1/patients/{id}/summaries` | clinician | Saves a draft as `in_review` |
+
+The clinician routes are gated on `current_clinician` plus an accepted `care_connections`
+row, and log an `asked_agent` entry to the audit trail.
+
+### Clinician answer
+
+Field names match [`lib/types.ts`](../lib/types.ts), so the Ask tab renders it unchanged:
 
 ```json
 {
+  "id": "ask-a1b2c3d4e5",
   "patientId": "demo",
   "generatedAt": "2026-09-12T09:30:00Z",
   "answer": "Plain-language answer for the clinician…",
   "riskSignals": [
     {
-      "id": "risk-metabolic",
+      "id": "risk-1",
       "title": "Metabolic risk signal",
       "severity": "medium",
       "explanation": "Fasting glucose is 108 mg/dL and sleep has fallen from 7.3 to 5.9 h over 21 days.",
@@ -88,65 +196,72 @@ clinician UI renders it without changes:
     }
   ],
   "confidence": "moderate",
-  "safetyNote": "Decision support only. Clinician review required.",
-  "draftSummary": {
-    "title": "Ahead of your appointment",
-    "whatWeSee": "Plain-language paragraph for the patient…",
-    "whatItMeans": "…",
-    "nextSteps": ["Repeat the blood test with HbA1c so we can see the trend clearly."],
-    "questionsForVisit": ["Should I repeat my blood sugar test, and add HbA1c?"],
-    "sources": [{ "id": "res-dpp-2002", "kind": "research", "title": "…", "url": "https://doi.org/…" }]
-  }
+  "safetyNote": "Decision support only. No diagnosis or prescribing. Clinician review required.",
+  "draftSummary": { "title": "Ahead of your appointment", "whatWeSee": "…", "whatItMeans": "…", "nextSteps": ["…"], "questionsForVisit": ["…"], "sources": [] },
+  "generation": { "mode": "nebius", "evidence": "amass", "reason": null }
 }
 ```
 
-Constraints:
+Constraints the UI depends on:
 
-- `severity` is `"high" | "medium" | "low"` (`PatientPriority`).
+- `severity` is `"high" | "medium" | "low"`.
 - `sources` and `citations[].source` use the `SourceLabel` union: `Diary`, `Wearable`,
   `Bloodwork`, `Genetic test`, `Amass Research`, `Clinician`.
 - Every `id` is required — the UI uses them as React keys.
-- `riskSignals` entries are `RiskPreventionItem`; note the field is **`explanation`**,
-  not `reason`.
-- `draftSummary` is the patient-facing version, in plain language, or `null` when the
-  record holds nothing to summarise. The Ask tab saves it with
-  `POST /api/v1/patients/{id}/summaries`, which writes `status = 'in_review'` —
-  so a model-written summary still has to be approved before a patient sees it.
+- The risk-signal field is **`explanation`**, not `reason`.
+- `draftSummary` is `null` when there are no risk signals to summarise.
 
-## Agent flow
+### Research chat
 
-For every clinician question:
+`POST /api/v1/clinician/research-chat` is for learning before a doctor opens a patient.
+It loads no patient context, creates no summaries and sends no messages. It returns
+`answer`, `keyTakeaways`, `studyNotes`, `followUpQuestions`, `citations`, `confidence`,
+`safetyNote` and `generation`. Its safety note is different on purpose: *"Educational
+research support only. Not patient-specific advice, diagnosis, prescribing or dosing."*
 
-1. **Load context** — `retrieval.get_patient_context(patient_id)` returns profile, labs
-   with history, wearable trends, check-ins, genetics, summaries and questions.
-2. **Retrieve evidence** — `amass.search(query)`, falling back to
-   `retrieval.search_research(query)` against the `research_sources` table.
-3. **Build a grounded prompt** (`prompts.py`), keeping patient data and research in
-   separate, clearly labelled blocks.
-4. **Call Nebius** with JSON output enforced, a timeout (~20 s) and one retry.
-5. **Validate with pydantic.** On failure, retry once with the validation error
-   appended to the prompt; if it fails again, fall back to `agent.answer()`.
-6. **Drop any citation whose URL was not in the retrieval results.** Models invent
-   plausible-looking DOIs — never pass a model-authored URL to the UI.
-7. **Return** the validated JSON.
+For a patient-grounded answer the doctor opens the record and uses the **Ask** tab.
 
-Always keep the deterministic fallback wired up: if Nebius is slow, rate-limited or
-down, the demo must still answer.
+## The clinician gate
+
+Two things that are easy to conflate:
+
+- The **clinician-facing** answer is decision support, rendered in the Ask tab, and never
+  stored as patient-facing text.
+- The **patient-facing** summary is a row in `summaries` with
+  `status: in_review | approved`. `POST /patients/{id}/summaries` writes
+  `in_review`, and `models.summary()` withholds `body` from the patient until the status
+  is `approved` — it even reports intermediate states as `in_review` so the patient never
+  sees drafting churn.
+
+So the agent generates a **draft**, and a clinician approves it. **There is no endpoint
+that returns unapproved AI text to the patient app, and adding one would break the
+product's central claim.**
+
+## The scripted fallback
+
+[`backend/agent.py`](../backend/agent.py) (patient) and
+[`backend/clinician_agent.py`](../backend/clinician_agent.py) (clinician) are not dead
+code and not a mock — they are the answer whenever the model cannot be trusted or
+reached.
+
+The fallback renders **neutral recorded observations** — "Fasting glucose: 108 mg/dL on
+2026-08-28; recorded status: high" — plus the note that these do not establish a
+diagnosis, and the scripted follow-up questions. It deliberately avoids the demo-specific
+clinical claims the scripted agent would otherwise make.
+
+This is why the app is safe to run with no API keys at all: it answers from the database,
+it says that is what it is doing, and it never guesses.
 
 ## Prompt rules
 
-The system prompt should match what the code already enforces in
-[`backend/agent.py`](../backend/agent.py) and [`lib/safety.ts`](../lib/safety.ts), so the
-agent and the app say the same thing:
+The system prompt matches what the code already enforces, so the agent and the app say
+the same thing:
 
 > You are a clinical decision-support assistant for longevity and preventive care.
 > Do not diagnose. Do not prescribe or give dosing. Do not tell the patient they have
 > a disease. Keep patient data and research evidence separate, and cite which sources
 > support each claim. If evidence is weak, say so. If symptoms suggest urgent care,
 > recommend contacting a clinician or emergency services. Return structured JSON only.
-
-Red-flag symptoms have a fixed list in `lib/safety.ts`, mirrored in `backend/agent.py`.
-Reuse it rather than relying on the model to notice.
 
 ### What "prediction" means here
 
@@ -155,107 +270,52 @@ Risk forecasting, not disease prediction.
 - Good: "This pattern may increase future cardiometabolic risk if it persists."
 - Avoid: "The patient will develop diabetes."
 
-## Environment variables
+## Configuration
 
 ```bash
-NEBIUS_API_KEY=
-NEBIUS_BASE_URL=
-NEBIUS_MODEL=
-AMASS_API_KEY=
-AMASS_BASE_URL=
+NEBIUS_API_KEY=            # without this, the fallback answers every question
+NEBIUS_BASE_URL=           # OpenAI-compatible endpoint, ending in /v1
+NEBIUS_MODEL=              # served model name from /v1/models
 NEBIUS_TIMEOUT_SECONDS=120
 NEBIUS_MAX_TOKENS=2200
+AMASS_API_KEY=
+AMASS_BASE_URL=            # unset falls back to the research_sources table
 AMASS_TIMEOUT_SECONDS=15
 ```
 
-- **Server-side only.** Never prefix them `NEXT_PUBLIC_`, and never import them into a
-  React component.
-- Add the names (no values) to [`.env.example`](../.env.example). `.env*` is gitignored.
-- For local development, the Python Health Agent loads provider settings from
-  `.env.local`; shell exports take precedence.
-- Confirm the exact base URL and model id in the Nebius console rather than assuming.
-- The keys live only where the Python backend runs; the frontend never sees them.
+**Server-side only.** Never prefix them `NEXT_PUBLIC_`, and never import them into a
+React component. Values are clamped on load (`config.py`): the timeout to 120 s,
+`max_tokens` to 4096. Confirm the base URL and model id in the Nebius console rather
+than assuming.
 
-## Minimum working demo
-
-Make it verifiable without any UI first:
+## Verifying it
 
 ```bash
+# what is configured and actually reachable
+python3 scripts/check_providers.py --live
+
+# the agent end to end (session cookie required)
 curl -s localhost:8000/api/v1/clinician/chat \
   -H 'Content-Type: application/json' \
   -d '{"patientId":"demo","question":"What should I focus on before the visit?"}'
 ```
 
-Sofia's real numbers should appear in the answer: fasting glucose 108 mg/dL, sleep
-7.3 → 5.9 h, HRV −16 %, hs-CRP 3.1 mg/L.
+Sofia's real numbers should appear: fasting glucose 108 mg/dL, sleep 7.3 → 5.9 h,
+HRV −16 %, hs-CRP 3.1 mg/L. Check `generation.mode` to see whether the model or the
+fallback produced them.
 
-The UI is built: the clinician record
-([`components/clinician/patient-record.tsx`](../components/clinician/patient-record.tsx))
-has an **Ask** tab ([`components/clinician/agent-chat.tsx`](../components/clinician/agent-chat.tsx))
-that renders `answer`, `riskSignals`, `citations` and `followUpQuestions`, and offers
-"Draft patient summary", "Message the patient" and "Copy". Keep the response shape and
-it keeps working.
-
-## Patient-facing summary
-
-Two different things, easy to conflate:
-
-- The **clinician-facing** summary (`ClinicianSummary` in `lib/types.ts`: headline, body,
-  suggested questions, safety note) is what the model should generate for the dashboard.
-- The **patient-facing** summary is `PatientSummary`, stored in the `summaries` table
-  with `status: in_review | approved`. Generating it writes a **draft**; the patient app
-  only ever receives `body` once the status is `approved`. Approval already exists:
-  `POST /api/v1/patients/{id}/summaries/{summaryId}/approve`.
-
-So generate the draft, leave it `in_review`, and let the clinician approve it. Never add
-an endpoint that returns unapproved AI text to the patient app.
-
-## Research chat before patient selection
-
-`POST /api/v1/clinician/research-chat` is a clinician-only route for general learning
-before a doctor opens a patient. It does not load patient context, create summaries, or
-send messages. The flow is:
-
-```txt
-doctor research question -> public Amass query -> retrieved papers -> Nebius synthesis
+```bash
+pytest tests/          # safety, grounding, fallback and citation behaviour
 ```
 
-The response includes `answer`, `keyTakeaways`, `studyNotes`, `followUpQuestions`,
-`citations`, `confidence`, and `safetyNote`. Citation URLs still come only from
-retrieval; the model selects evidence IDs and the server attaches canonical metadata.
-
-This route is for study support, not patient-specific care. If the doctor needs a
-patient-grounded answer, they open the record and use the patient **Ask** tab instead.
-
-## Division of labour
-
-Amass retrieval sits in Person 2's lane (see [TEAM_CONTRACT.md](../TEAM_CONTRACT.md)).
-Agree on the interface now:
-
-```txt
-search_research(query) -> [{ id, title, detail, url }]
-```
-
-The table-backed version already returns exactly that shape, so both of you can work in
-parallel and swap the implementation later.
+[`tests/test_health_agent.py`](../tests/test_health_agent.py) covers the parts that are
+expensive to get wrong: red-flag escalation, the medication boundary, invented citations
+being dropped, the fallback path, and that patients never receive unapproved text. It has
+already caught one real regression — a missing red flag in the backend's copy of the list.
 
 ## Key principle
 
 **Backend owns intelligence. Frontend owns presentation.** The frontend calls API routes
-and receives clean JSON. It never needs to know whether the data came from Nebius,
-Amass, RAG or mocks.
-
-## Changes from the first draft of this plan
-
-For anyone who saw the original version:
-
-- The agent moves to Python, because the patient context, database access and safety
-  rules already live in `backend/`.
-- `riskSignals` and `citations` now match `lib/types.ts` (`explanation` not `reason`,
-  required `id`, `sources` from the `SourceLabel` union) so the UI renders them as-is.
-- The two API routes already exist as mocks — they are replaced, not created.
-- Clarified that the clinician-facing summary and the patient-facing one are different
-  things, and that the patient-facing one stays gated behind approval.
-- Added: validation with pydantic, a deterministic fallback, timeouts, and the rule that
-  citation URLs must come from retrieval and never from the model.
-- Flagged that the clinician chat UI does not call the API yet.
+and receives clean JSON. It never needs to know whether an answer came from Nebius, from
+Amass, from the database, or from the scripted fallback — and the keys never reach the
+browser.

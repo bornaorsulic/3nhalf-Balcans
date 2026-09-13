@@ -2,7 +2,9 @@
 
 How people sign in, how a patient and a doctor become connected, and what each of
 them is allowed to see. The database tables are listed in [DATABASE.md](DATABASE.md);
-this page explains the rules.
+this page explains the rules. Patient-facing shapes are in
+[PATIENT_API.md](PATIENT_API.md), and the agent behind the Ask tab is in
+[HEALTH_AGENT.md](HEALTH_AGENT.md).
 
 ## Roles
 
@@ -146,6 +148,9 @@ POST   /api/v1/connections/{id}/respond | /{id}/end
 GET    /api/v1/connections/{id}/messages     POST same path      POST /{id}/voice      POST /{id}/read
 POST   /api/v1/voice/transcribe              POST /voice/speak   GET /files/{fileId}
 GET    /api/v1/patients/{id}/files           POST same path      (patient or connected clinician)
+GET    /api/v1/patients/{id}/files/{fileId}/download                 (patient or connected clinician)
+GET    /api/v1/patients/{id}/files/{fileId}/parse                    (clinician only: read, writes nothing)
+POST   /api/v1/patients/{id}/files/{fileId}/apply                    (clinician only: save confirmed values)
 GET    /api/v1/clinicians/{id}/slots?only_open=&days=
 POST   /api/v1/clinician/slots               DELETE /clinician/slots/{id}      (delete or block)
 POST   /api/v1/clinician/slots/{id}/unblock
@@ -158,8 +163,10 @@ POST   /api/v1/clinician/research-chat                           (general resear
 POST   /api/v1/patients/{id}/summaries                           (save a draft, clinician)
 PUT    /api/v1/patients/{id}/summaries/{summaryId}               (edit, clinician)
 GET    /api/v1/patients/{id}/summaries/{summaryId}/versions
+POST   /api/v1/patients/{id}/summaries/{summaryId}/request-changes
 POST   /api/v1/patients/{id}/summaries/{summaryId}/approve
 GET    /api/v1/patients/{id}/audit
+POST   /api/v1/demo/reset                                        (no session: see PATIENT_API.md)
 ```
 
 ## What this is not
