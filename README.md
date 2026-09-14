@@ -10,6 +10,12 @@
 [![FastAPI](https://img.shields.io/badge/FastAPI-Python-009688?style=flat-square&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Data-4169E1?style=flat-square&logo=postgresql&logoColor=white)](https://www.postgresql.org)
 
+### Demo
+
+[Open the live website](https://web-nf3pfhmykt95ewn.tunnel.applications.eu-west1.nebius.cloud) · [Watch the demo video](public/demo.mp4)
+
+Add the demo recording at `public/demo.mp4` so the video link works from GitHub.
+
 </div>
 
 ---
