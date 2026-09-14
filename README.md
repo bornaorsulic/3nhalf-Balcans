@@ -14,8 +14,6 @@
 
 [Open the live website](https://web-nf3pfhmykt95ewn.tunnel.applications.eu-west1.nebius.cloud) · [Watch the demo video](public/demo.mp4)
 
-Add the demo recording at `public/demo.mp4` so the video link works from GitHub.
-
 </div>
 
 ---
@@ -446,32 +444,16 @@ tests/                agent safety and grounding tests
 
 ---
 
-## Team Members and Next Steps
-
-**Team members**
-
-Borna Oršulić · Jonas Neumann · Kristijan Sagovac · Erjon Sejdiu
-
-**Next steps**
-
-- Replace the recorded-demo placeholder with the final 2-3 minute video link.
-- Surface the `generation` field in the UI so users can see whether an answer came from
-  Nebius, fallback mode or safety mode.
-- Add real authentication hardening for production: non-demo passwords, disabled demo
-  reset, stricter invite-code handling and deployment secrets rotation.
-- Expand document parsing beyond the current PDF-focused flow and add validation against
-  more report formats.
-- Add clinician analytics for edit distance, fallback rate, source coverage and time to
-  approved summary.
-- Run user testing with patients and clinicians before considering any real-world health
-  workflow.
-
----
-
 <div align="center">
 
 Built for the **AI Longevity Hackathon** · 2026
 
 *Theme: evidence-grounded longevity care with clinicians in the loop*
+
+---
+
+**Team**
+
+[Borna Oršulić](https://www.linkedin.com/in/borna-or%C5%A1uli%C4%87-1680aa370/) · [Jonas Neumann](https://www.linkedin.com/in/neumannjonas?utm_source=share_via&utm_content=profile&utm_medium=member_ios) · [Kristijan Šagovac](https://www.linkedin.com/in/kristijan-šagovac-b4ba10367?utm_source=share_via&utm_content=profile&utm_medium=member_ios) · [Erjon Sejdiu](https://www.linkedin.com/in/erjonsejdiu?utm_source=share_via&utm_content=profile&utm_medium=member_ios)
 
 </div>
